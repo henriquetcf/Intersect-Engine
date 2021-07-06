@@ -742,13 +742,21 @@ namespace Intersect.Client.Networking
 
                 //Update status effects
                 entity.Status.Clear();
+                entity.PassiveStatus.Clear();
                 foreach (var status in en.Statuses)
                 {
                     var instance = new Status(
-                        status.SpellId, status.Type, status.TransformSprite, status.TimeRemaining, status.TotalDuration
+                        status.SpellId, status.Type, status.TransformSprite, status.TimeRemaining, status.TotalDuration, status.IsPassive
                     );
+                    
+                    if (instance.IsPassive)
+                    {
+                        entity.PassiveStatus?.Add(instance);
+                    } else
+                    {
+                        entity.Status?.Add(instance);
+                    }
 
-                    entity.Status.Add(instance);
 
                     if (instance.Type == StatusTypes.Stun || instance.Type == StatusTypes.Silence)
                     {
@@ -827,13 +835,20 @@ namespace Intersect.Client.Networking
 
             //Update status effects
             en.Status.Clear();
+            en.PassiveStatus.Clear();
             foreach (var status in packet.StatusEffects)
             {
                 var instance = new Status(
-                    status.SpellId, status.Type, status.TransformSprite, status.TimeRemaining, status.TotalDuration
+                    status.SpellId, status.Type, status.TransformSprite, status.TimeRemaining, status.TotalDuration, status.IsPassive
                 );
 
-                en.Status.Add(instance);
+                if (instance.IsPassive)
+                {
+                    en.PassiveStatus?.Add(instance);
+                } else
+                {
+                    en.Status?.Add(instance);
+                }
 
                 if (instance.Type == StatusTypes.Stun || instance.Type == StatusTypes.Silence)
                 {

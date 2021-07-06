@@ -1919,7 +1919,10 @@ namespace Intersect.Server.Entities
                     if (status.Type == StatusTypes.OnHit)
                     {
                         TryAttack(enemy, status.Spell, true);
-                        status.RemoveStatus();
+                        if (status.Spell.SpellType != SpellTypes.Passive)
+                        {
+                            status.RemoveStatus();
+                        }
                     }
                 }
             }
@@ -2660,6 +2663,8 @@ namespace Intersect.Server.Entities
             for (var i = 0; i < statuses.Length; i++)
             {
                 var status = statuses[i];
+                long duration = 0; long timeRemaining = 0;
+                bool isPassive = false;
                 int[] vitalShields = null;
                 if (status.Type == StatusTypes.Shield)
                 {
@@ -2668,12 +2673,21 @@ namespace Intersect.Server.Entities
                     {
                         vitalShields[x] = status.shield[x];
                     }
+                } 
+                
+                if (status.Spell.SpellType == SpellTypes.Passive)
+                {
+                    duration = status.Duration;
+                    timeRemaining = status.Duration;
+
+                    isPassive = true;
+                } else
+                {
+                    duration = (int) (status.Duration - status.StartTime);
+                    timeRemaining = (int) (status.Duration - Globals.Timing.Milliseconds);
                 }
 
-                statusPackets[i] = new StatusPacket(
-                    status.Spell.Id, status.Type, status.Data, (int) (status.Duration - Globals.Timing.Milliseconds),
-                    (int) (status.Duration - status.StartTime), vitalShields
-                );
+                statusPackets[i] = new StatusPacket(status.Spell.Id, status.Type, status.Data, timeRemaining, duration, vitalShields, isPassive);
             }
 
             return statusPackets;

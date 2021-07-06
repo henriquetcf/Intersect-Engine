@@ -23,7 +23,9 @@ namespace Intersect.Client.Entities
 
         public StatusTypes Type;
 
-        public Status(Guid spellId, StatusTypes type, string data, long timeRemaining, long totalDuration)
+        public bool IsPassive = false;
+
+        public Status(Guid spellId, StatusTypes type, string data, long timeRemaining, long totalDuration, bool isPassive = false)
         {
             SpellId = spellId;
             Type = type;
@@ -31,10 +33,17 @@ namespace Intersect.Client.Entities
             TimeRemaining = timeRemaining;
             TotalDuration = totalDuration;
             TimeRecevied = Globals.System.GetTimeMs();
+            IsPassive = isPassive;
+
         }
 
         public bool IsActive()
         {
+            if (isPassive())
+            {
+                return TotalDuration >= 0;
+            }
+
             return RemainingMs() > 0;
         }
 
@@ -43,6 +52,11 @@ namespace Intersect.Client.Entities
             var timeDiff = Globals.System.GetTimeMs() - TimeRecevied;
 
             return TimeRemaining - timeDiff;
+        }
+
+        public bool isPassive()
+        {
+            return IsPassive;
         }
 
     }

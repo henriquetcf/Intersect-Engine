@@ -19,7 +19,8 @@ namespace Intersect.Network.Packets.Server
             string transformSprite,
             long timeRemaining,
             long totalDuration,
-            int[] vitalShields
+            int[] vitalShields,
+            bool isPassive = false
         )
         {
             SpellId = spellId;
@@ -28,6 +29,7 @@ namespace Intersect.Network.Packets.Server
             TimeRemaining = timeRemaining;
             TotalDuration = totalDuration;
             VitalShields = vitalShields;
+            IsPassive = isPassive;
         }
 
         [Key(0)]
@@ -47,6 +49,9 @@ namespace Intersect.Network.Packets.Server
 
         [Key(5)]
         public int[] VitalShields { get; set; }
+
+        [Key(6)]
+        public bool IsPassive { get; set; }
 
     }
 

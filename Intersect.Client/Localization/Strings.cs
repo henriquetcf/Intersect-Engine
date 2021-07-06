@@ -1500,6 +1500,7 @@ namespace Intersect.Client.Localization
                 {2, @"Warp to Target"},
                 {3, @"Dash"},
                 {4, @"Special"},
+                {5, @"Passive"},
             };
 
             public static Dictionary<int, LocalizedString> stats = new Dictionary<int, LocalizedString>

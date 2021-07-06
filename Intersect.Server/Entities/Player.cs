@@ -275,6 +275,16 @@ namespace Intersect.Server.Entities
                 if (spl.SpellId != Guid.Empty && SpellBase.Get(spl.SpellId) == null)
                 {
                     spl.Set(new Spell());
+                } 
+                else
+                {
+                    var spell = SpellBase.Get(spl.SpellId);
+                    if (spell != null && isPassiveSpell(spell))
+                    {
+                        //Statuses.TryAdd(spell, new Status(this, this, spell, spell.Combat.Effect, 1, ""));
+                        new Status(this, this, spell, spell.Combat.Effect, 1, "");
+                        addPassiveBuff(spell);
+                    }
                 }
             }
 
@@ -762,6 +772,19 @@ namespace Intersect.Server.Entities
             CachedDots = new DoT[0];
             Statuses.Clear();
             CachedStatuses = new Status[0];
+
+            foreach (var spl in Spells)
+            {
+                
+                var spell = SpellBase.Get(spl.SpellId);
+                if (spell != null && isPassiveSpell(spell))
+                {
+                    //Statuses.TryAdd(spell, new Status(this, this, spell, spell.Combat.Effect, 1, ""));
+                    new Status(this, this, spell, spell.Combat.Effect, 1, "");
+                    addPassiveBuff(spell);
+                }
+            }
+
 
             CombatTimer = 0;
 
@@ -3993,9 +4016,22 @@ namespace Intersect.Server.Entities
                 if (Spells[i].SpellId == Guid.Empty)
                 {
                     Spells[i].Set(spell);
+
                     if (sendUpdate)
                     {
-                        PacketSender.SendPlayerSpellUpdate(this, i);
+                        var spellBase = SpellBase.Get(spell.SpellId);
+                        if (isPassiveSpell(spellBase))
+                        {
+                            //Statuses.TryAdd(spellBase, new Status(this, this, spellBase, spellBase.Combat.Effect, 1, ""));
+                            new Status(this, this, spellBase, spellBase.Combat.Effect, 1, "");
+                            addPassiveBuff(spellBase);
+
+                            PacketSender.SendEntityDataTo(this, this);
+                        }
+                        else
+                        {
+                            PacketSender.SendPlayerSpellUpdate(this, i);
+                        }
                     }
 
                     return true;
@@ -4003,6 +4039,26 @@ namespace Intersect.Server.Entities
             }
 
             return false;
+        }
+
+        public bool isPassiveSpell(SpellBase spell)
+        {
+            return spell.SpellType == SpellTypes.Passive;
+        }
+
+        public void addPassiveBuff(SpellBase spellPassive, int expireTime = 1)
+        {
+            if (spellPassive.Combat.Effect == StatusTypes.OnHit) 
+                return;
+
+            //var expireTime = 1;
+            for (var i = 0; i < (int)Stats.StatCount; i++)
+            {
+                Stat[i]
+                    .AddBuff(
+                        new Buff(spellPassive, spellPassive.Combat.StatDiff[i], spellPassive.Combat.PercentageStatDiff[i], expireTime)
+                    );
+            }
         }
 
         public bool KnowsSpell(Guid spellId)
@@ -4042,10 +4098,26 @@ namespace Intersect.Server.Entities
 
         public void ForgetSpell(int spellSlot)
         {
-            if (!SpellBase.Get(Spells[spellSlot].SpellId).Bound)
+            var spellBase = SpellBase.Get(Spells[spellSlot].SpellId);
+            if (spellBase != null && !spellBase.Bound)
             {
+
                 Spells[spellSlot].Set(Spell.None);
-                PacketSender.SendPlayerSpellUpdate(this, spellSlot);
+
+                if (isPassiveSpell(spellBase))
+                {
+                    Statuses.TryGetValue(spellBase, out Status status);
+                    Status auxStatus = status;
+                    auxStatus.Duration = -1;
+                    Statuses.TryUpdate(spellBase, auxStatus, status);
+
+                    //PacketSender.SendEntityDataTo(this, this);
+                    PacketSender.SendPlayerSpellUpdate(this, spellSlot);
+                }
+                else
+                {
+                    PacketSender.SendPlayerSpellUpdate(this, spellSlot);
+                }
             }
             else
             {
@@ -4092,7 +4164,21 @@ namespace Intersect.Server.Entities
             }
 
             slot.Set(Spell.None);
-            PacketSender.SendPlayerSpellUpdate(this, slotIndex);
+
+            if (isPassiveSpell(spellBase))
+            {
+                Statuses.TryGetValue(spellBase, out Status status);
+                Status auxStatus = status;
+                auxStatus.Duration = -1;
+                Statuses.TryUpdate(spellBase, auxStatus, status);
+
+                //PacketSender.SendEntityDataTo(this, this);
+                PacketSender.SendPlayerSpellUpdate(this, slotIndex);
+            }
+            else
+            {
+                PacketSender.SendPlayerSpellUpdate(this, slotIndex);
+            }
 
             return true;
         }
