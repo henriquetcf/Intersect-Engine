@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 using Intersect.Client.Core;
 using Intersect.Client.Framework.File_Management;
+using Intersect.Client.Framework.Graphics;
 using Intersect.Client.Framework.Gwen;
 using Intersect.Client.Framework.Gwen.Control;
 using Intersect.Client.Framework.Gwen.Control.EventArguments;
@@ -15,7 +16,7 @@ using Intersect.Utilities;
 namespace Intersect.Client.Interface.Menu
 {
 
-    public class ForgotPasswordWindow
+    public partial class ForgotPasswordWindow
     {
 
         private Button mBackBtn;
@@ -84,18 +85,14 @@ namespace Intersect.Client.Interface.Menu
             mHintLabel = new RichLabel(mResetWindow);
             mHintLabel.SetBounds(mHintLabelTemplate.Bounds);
             mHintLabelTemplate.IsHidden = false;
-            mHintLabel.AddText(
-                Strings.ForgotPass.hint, mHintLabelTemplate.TextColor,
-                mHintLabelTemplate.CurAlignments.Count > 0 ? mHintLabelTemplate.CurAlignments[0] : Alignments.Left,
-                mHintLabelTemplate.Font
-            );
+            mHintLabel.AddText(Strings.ForgotPass.hint, mHintLabelTemplate);
         }
 
         public bool IsHidden => mResetWindow.IsHidden;
 
         private void Textbox_Clicked(Base sender, ClickedEventArgs arguments)
         {
-            Globals.InputManager.OpenKeyboard(GameInput.KeyboardType.Normal, mInputTextbox.Text, false, false, false);
+            Globals.InputManager.OpenKeyboard(KeyboardType.Normal, mInputTextbox.Text, false, false, false);
         }
 
         //Methods
@@ -146,7 +143,6 @@ namespace Intersect.Client.Interface.Menu
 
             TrySendCode();
 
-            Globals.WaitingOnServer = true;
             mSubmitBtn.Disable();
         }
 

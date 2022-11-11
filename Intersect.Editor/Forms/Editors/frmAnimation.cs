@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 
 using DarkUI.Controls;
@@ -28,8 +29,6 @@ namespace Intersect.Editor.Forms.Editors
 
         private AnimationBase mEditorItem;
 
-        private List<string> mExpandedFolders = new List<string>();
-
         private List<string> mKnownFolders = new List<string>();
 
         private RenderTarget2D mLowerDarkness;
@@ -53,8 +52,15 @@ namespace Intersect.Editor.Forms.Editors
         {
             ApplyHooks();
             InitializeComponent();
-            lstAnimations.LostFocus += itemList_FocusChanged;
-            lstAnimations.GotFocus += itemList_FocusChanged;
+            Icon = System.Drawing.Icon.ExtractAssociatedIcon(System.Reflection.Assembly.GetExecutingAssembly().Location);
+
+            lstGameObjects.Init(UpdateToolStripItems, AssignEditorItem, toolStripItemNew_Click, toolStripItemCopy_Click, toolStripItemUndo_Click, toolStripItemPaste_Click, toolStripItemDelete_Click);
+        }
+
+        private void AssignEditorItem(Guid id)
+        {
+            mEditorItem = AnimationBase.Get(id);
+            UpdateEditor();
         }
 
         protected override void GameObjectUpdatedDelegate(GameObjectType type)
@@ -105,19 +111,19 @@ namespace Intersect.Editor.Forms.Editors
         {
             //Animation Sound
             cmbSound.Items.Clear();
-            cmbSound.Items.Add(Strings.General.none);
+            cmbSound.Items.Add(Strings.General.None);
             cmbSound.Items.AddRange(GameContentManager.SmartSortedSoundNames);
 
             //Lower Animation Graphic
             cmbLowerGraphic.Items.Clear();
-            cmbLowerGraphic.Items.Add(Strings.General.none);
+            cmbLowerGraphic.Items.Add(Strings.General.None);
             cmbLowerGraphic.Items.AddRange(
                 GameContentManager.GetSmartSortedTextureNames(GameContentManager.TextureType.Animation)
             );
 
             //Upper Animation Graphic
             cmbUpperGraphic.Items.Clear();
-            cmbUpperGraphic.Items.Add(Strings.General.none);
+            cmbUpperGraphic.Items.Add(Strings.General.None);
             cmbUpperGraphic.Items.AddRange(
                 GameContentManager.GetSmartSortedTextureNames(GameContentManager.TextureType.Animation)
             );
@@ -188,7 +194,7 @@ namespace Intersect.Editor.Forms.Editors
             chkRenderBelowFringe.Text = Strings.AnimationEditor.renderbelowfringe;
 
             //Searching/Sorting
-            btnChronological.ToolTipText = Strings.AnimationEditor.sortchronologically;
+            btnAlphabetical.ToolTipText = Strings.AnimationEditor.sortalphabetically;
             txtSearch.Text = Strings.AnimationEditor.searchplaceholder;
             lblFolder.Text = Strings.AnimationEditor.folderlabel;
 
@@ -259,14 +265,8 @@ namespace Intersect.Editor.Forms.Editors
 
         private void txtName_TextChanged(object sender, EventArgs e)
         {
-            mChangingName = true;
             mEditorItem.Name = txtName.Text;
-            if (lstAnimations.SelectedNode != null && lstAnimations.SelectedNode.Tag != null)
-            {
-                lstAnimations.SelectedNode.Text = txtName.Text;
-            }
-
-            mChangingName = false;
+            lstGameObjects.UpdateText(txtName.Text);
         }
 
         private void cmbSound_SelectedIndexChanged(object sender, EventArgs e)
@@ -614,11 +614,11 @@ namespace Intersect.Editor.Forms.Editors
 
         private void toolStripItemDelete_Click(object sender, EventArgs e)
         {
-            if (mEditorItem != null && lstAnimations.Focused)
+            if (mEditorItem != null && lstGameObjects.Focused)
             {
                 if (DarkMessageBox.ShowWarning(
                         Strings.AnimationEditor.deleteprompt, Strings.AnimationEditor.deletetitle,
-                        DarkDialogButton.YesNo, Properties.Resources.Icon
+                        DarkDialogButton.YesNo, Icon
                     ) ==
                     DialogResult.Yes)
                 {
@@ -629,7 +629,7 @@ namespace Intersect.Editor.Forms.Editors
 
         private void toolStripItemCopy_Click(object sender, EventArgs e)
         {
-            if (mEditorItem != null && lstAnimations.Focused)
+            if (mEditorItem != null && lstGameObjects.Focused)
             {
                 mCopiedItem = mEditorItem.JsonData;
                 toolStripItemPaste.Enabled = true;
@@ -638,7 +638,7 @@ namespace Intersect.Editor.Forms.Editors
 
         private void toolStripItemPaste_Click(object sender, EventArgs e)
         {
-            if (mEditorItem != null && mCopiedItem != null && lstAnimations.Focused)
+            if (mEditorItem != null && mCopiedItem != null && lstGameObjects.Focused)
             {
                 mEditorItem.Load(mCopiedItem, true);
                 UpdateEditor();
@@ -651,7 +651,7 @@ namespace Intersect.Editor.Forms.Editors
             {
                 if (DarkMessageBox.ShowWarning(
                         Strings.AnimationEditor.undoprompt, Strings.AnimationEditor.undotitle, DarkDialogButton.YesNo,
-                        Properties.Resources.Icon
+                        Icon
                     ) ==
                     DialogResult.Yes)
                 {
@@ -661,43 +661,12 @@ namespace Intersect.Editor.Forms.Editors
             }
         }
 
-        private void itemList_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Control)
-            {
-                if (e.KeyCode == Keys.Z)
-                {
-                    toolStripItemUndo_Click(null, null);
-                }
-                else if (e.KeyCode == Keys.V)
-                {
-                    toolStripItemPaste_Click(null, null);
-                }
-                else if (e.KeyCode == Keys.C)
-                {
-                    toolStripItemCopy_Click(null, null);
-                }
-            }
-            else
-            {
-                if (e.KeyCode == Keys.Delete)
-                {
-                    toolStripItemDelete_Click(null, null);
-                }
-            }
-        }
-
         private void UpdateToolStripItems()
         {
-            toolStripItemCopy.Enabled = mEditorItem != null && lstAnimations.Focused;
-            toolStripItemPaste.Enabled = mEditorItem != null && mCopiedItem != null && lstAnimations.Focused;
-            toolStripItemDelete.Enabled = mEditorItem != null && lstAnimations.Focused;
-            toolStripItemUndo.Enabled = mEditorItem != null && lstAnimations.Focused;
-        }
-
-        private void itemList_FocusChanged(object sender, EventArgs e)
-        {
-            UpdateToolStripItems();
+            toolStripItemCopy.Enabled = mEditorItem != null && lstGameObjects.Focused;
+            toolStripItemPaste.Enabled = mEditorItem != null && mCopiedItem != null && lstGameObjects.Focused;
+            toolStripItemDelete.Enabled = mEditorItem != null && lstGameObjects.Focused;
+            toolStripItemUndo.Enabled = mEditorItem != null && lstGameObjects.Focused;
         }
 
         private void form_KeyDown(object sender, KeyEventArgs e)
@@ -711,19 +680,28 @@ namespace Intersect.Editor.Forms.Editors
             }
         }
 
+        private void CheckFrameCounts()
+        {
+            nudLowerFrameCount.Value = Math.Min(mEditorItem.Lower.FrameCount, mEditorItem.Lower.XFrames * mEditorItem.Lower.YFrames);
+            nudUpperFrameCount.Value = Math.Min(mEditorItem.Upper.FrameCount, mEditorItem.Upper.XFrames * mEditorItem.Upper.YFrames);
+        }
+
         private void nudLowerHorizontalFrames_ValueChanged(object sender, EventArgs e)
         {
             mEditorItem.Lower.XFrames = (int) nudLowerHorizontalFrames.Value;
+            CheckFrameCounts();
         }
 
         private void nudLowerVerticalFrames_ValueChanged(object sender, EventArgs e)
         {
             mEditorItem.Lower.YFrames = (int) nudLowerVerticalFrames.Value;
+            CheckFrameCounts();
         }
 
         private void nudLowerFrameCount_ValueChanged(object sender, EventArgs e)
         {
             mEditorItem.Lower.FrameCount = (int) nudLowerFrameCount.Value;
+            CheckFrameCounts();
             UpdateLowerFrames();
         }
 
@@ -741,16 +719,19 @@ namespace Intersect.Editor.Forms.Editors
         private void nudUpperHorizontalFrames_ValueChanged(object sender, EventArgs e)
         {
             mEditorItem.Upper.XFrames = (int) nudUpperHorizontalFrames.Value;
+            CheckFrameCounts();
         }
 
         private void nudUpperVerticalFrames_ValueChanged(object sender, EventArgs e)
         {
             mEditorItem.Upper.YFrames = (int) nudUpperVerticalFrames.Value;
+            CheckFrameCounts();
         }
 
         private void nudUpperFrameCount_ValueChanged(object sender, EventArgs e)
         {
             mEditorItem.Upper.FrameCount = (int) nudUpperFrameCount.Value;
+            CheckFrameCounts();
             UpdateUpperFrames();
         }
 
@@ -795,26 +776,17 @@ namespace Intersect.Editor.Forms.Editors
 
         public void InitEditor()
         {
-            var selectedId = Guid.Empty;
-            var folderNodes = new Dictionary<string, TreeNode>();
-            if (lstAnimations.SelectedNode != null && lstAnimations.SelectedNode.Tag != null)
-            {
-                selectedId = (Guid) lstAnimations.SelectedNode.Tag;
-            }
-
-            lstAnimations.Nodes.Clear();
-
             //Collect folders
             var mFolders = new List<string>();
             foreach (var anim in AnimationBase.Lookup)
             {
-                if (!string.IsNullOrEmpty(((AnimationBase) anim.Value).Folder) &&
-                    !mFolders.Contains(((AnimationBase) anim.Value).Folder))
+                if (!string.IsNullOrEmpty(((AnimationBase)anim.Value).Folder) &&
+                    !mFolders.Contains(((AnimationBase)anim.Value).Folder))
                 {
-                    mFolders.Add(((AnimationBase) anim.Value).Folder);
-                    if (!mKnownFolders.Contains(((AnimationBase) anim.Value).Folder))
+                    mFolders.Add(((AnimationBase)anim.Value).Folder);
+                    if (!mKnownFolders.Contains(((AnimationBase)anim.Value).Folder))
                     {
-                        mKnownFolders.Add(((AnimationBase) anim.Value).Folder);
+                        mKnownFolders.Add(((AnimationBase)anim.Value).Folder);
                     }
                 }
             }
@@ -825,70 +797,9 @@ namespace Intersect.Editor.Forms.Editors
             cmbFolder.Items.Add("");
             cmbFolder.Items.AddRange(mKnownFolders.ToArray());
 
-            lstAnimations.Sorted = !btnChronological.Checked;
-
-            if (!btnChronological.Checked && !CustomSearch())
-            {
-                foreach (var folder in mFolders)
-                {
-                    var node = lstAnimations.Nodes.Add(folder);
-                    node.ImageIndex = 0;
-                    node.SelectedImageIndex = 0;
-                    folderNodes.Add(folder, node);
-                }
-            }
-
-            foreach (var itm in AnimationBase.ItemPairs)
-            {
-                var node = new TreeNode(itm.Value);
-                node.Tag = itm.Key;
-                node.ImageIndex = 1;
-                node.SelectedImageIndex = 1;
-
-                var folder = AnimationBase.Get(itm.Key).Folder;
-                if (!string.IsNullOrEmpty(folder) && !btnChronological.Checked && !CustomSearch())
-                {
-                    var folderNode = folderNodes[folder];
-                    folderNode.Nodes.Add(node);
-                    if (itm.Key == selectedId)
-                    {
-                        folderNode.Expand();
-                    }
-                }
-                else
-                {
-                    lstAnimations.Nodes.Add(node);
-                }
-
-                if (CustomSearch())
-                {
-                    if (!node.Text.ToLower().Contains(txtSearch.Text.ToLower()))
-                    {
-                        node.Remove();
-                    }
-                }
-
-                if (itm.Key == selectedId)
-                {
-                    lstAnimations.SelectedNode = node;
-                }
-            }
-
-            var selectedNode = lstAnimations.SelectedNode;
-
-            if (!btnChronological.Checked)
-            {
-                lstAnimations.Sort();
-            }
-
-            lstAnimations.SelectedNode = selectedNode;
-            foreach (var node in mExpandedFolders)
-            {
-                if (folderNodes.ContainsKey(node))
-                {
-                    folderNodes[node].Expand();
-                }
-            }
+            var items = AnimationBase.Lookup.OrderBy(p => p.Value?.Name).Select(pair => new KeyValuePair<Guid, KeyValuePair<string, string>>(pair.Key,
+                new KeyValuePair<string, string>(((AnimationBase)pair.Value)?.Name ?? Models.DatabaseObject<AnimationBase>.Deleted, ((AnimationBase)pair.Value)?.Folder ?? ""))).ToArray();
+            lstGameObjects.Repopulate(items, mFolders, btnAlphabetical.Checked, CustomSearch(), txtSearch.Text);
         }
 
         private void btnAddFolder_Click(object sender, EventArgs e)
@@ -904,73 +815,11 @@ namespace Intersect.Editor.Forms.Editors
                 if (!cmbFolder.Items.Contains(folderName))
                 {
                     mEditorItem.Folder = folderName;
-                    mExpandedFolders.Add(folderName);
+                    lstGameObjects.ExpandFolder(folderName);
                     InitEditor();
                     cmbFolder.Text = folderName;
                 }
             }
-        }
-
-        private void lstAnimations_NodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
-        {
-            var node = e.Node;
-            if (node != null)
-            {
-                if (e.Button == MouseButtons.Right)
-                {
-                    if (e.Node.Tag != null && e.Node.Tag.GetType() == typeof(Guid))
-                    {
-                        Clipboard.SetText(e.Node.Tag.ToString());
-                    }
-                }
-
-                var hitTest = lstAnimations.HitTest(e.Location);
-                if (hitTest.Location != TreeViewHitTestLocations.PlusMinus)
-                {
-                    if (node.Nodes.Count > 0)
-                    {
-                        if (node.IsExpanded)
-                        {
-                            node.Collapse();
-                        }
-                        else
-                        {
-                            node.Expand();
-                        }
-                    }
-                }
-
-                if (node.IsExpanded)
-                {
-                    if (!mExpandedFolders.Contains(node.Text))
-                    {
-                        mExpandedFolders.Add(node.Text);
-                    }
-                }
-                else
-                {
-                    if (mExpandedFolders.Contains(node.Text))
-                    {
-                        mExpandedFolders.Remove(node.Text);
-                    }
-                }
-            }
-        }
-
-        private void lstAnimations_AfterSelect(object sender, TreeViewEventArgs e)
-        {
-            if (mChangingName)
-            {
-                return;
-            }
-
-            if (lstAnimations.SelectedNode == null || lstAnimations.SelectedNode.Tag == null)
-            {
-                return;
-            }
-
-            mEditorItem = AnimationBase.Get((Guid) lstAnimations.SelectedNode.Tag);
-            UpdateEditor();
         }
 
         private void cmbFolder_SelectedIndexChanged(object sender, EventArgs e)
@@ -979,9 +828,9 @@ namespace Intersect.Editor.Forms.Editors
             InitEditor();
         }
 
-        private void btnChronological_Click(object sender, EventArgs e)
+        private void btnAlphabetical_Click(object sender, EventArgs e)
         {
-            btnChronological.Checked = !btnChronological.Checked;
+            btnAlphabetical.Checked = !btnAlphabetical.Checked;
             InitEditor();
         }
 

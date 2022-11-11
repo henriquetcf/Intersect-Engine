@@ -1,11 +1,9 @@
 ﻿using System;
 
-using JetBrains.Annotations;
-
 namespace Intersect.Immutability
 {
 
-    public struct Immutable<TValue>
+    public partial struct Immutable<TValue>
     {
 
         private bool mInitialized;
@@ -33,7 +31,7 @@ namespace Intersect.Immutability
             mValue = value;
         }
 
-        public static implicit operator TValue([NotNull] Immutable<TValue> immutable)
+        public static implicit operator TValue(Immutable<TValue> immutable)
         {
             return immutable.mValue;
         }

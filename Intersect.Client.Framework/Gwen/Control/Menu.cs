@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 
 using Intersect.Client.Framework.File_Management;
@@ -13,7 +13,7 @@ namespace Intersect.Client.Framework.Gwen.Control
     /// <summary>
     ///     Popup menu.
     /// </summary>
-    public class Menu : ScrollControl
+    public partial class Menu : ScrollControl
     {
 
         private string mBackgroundTemplateFilename;
@@ -37,7 +37,7 @@ namespace Intersect.Client.Framework.Gwen.Control
         ///     Initializes a new instance of the <see cref="Menu" /> class.
         /// </summary>
         /// <param name="parent">Parent control.</param>
-        public Menu(Base parent) : base(parent)
+        public Menu(Base parent, string name = default) : base(parent, name)
         {
             SetBounds(0, 0, 10, 10);
             Padding = Padding.Two;
@@ -46,6 +46,7 @@ namespace Intersect.Client.Framework.Gwen.Control
             AutoHideBars = true;
             EnableScroll(false, true);
             DeleteOnClose = false;
+            Name = name;
         }
 
         internal override bool IsMenuComponent => true;
@@ -98,7 +99,20 @@ namespace Intersect.Client.Framework.Gwen.Control
             IsHidden = false;
             BringToFront();
             var mouse = Input.InputHandler.MousePosition;
-            SetPosition(mouse.X, mouse.Y);
+
+            var x = mouse.X;
+            var y = mouse.Y;
+            if (x + Width > Canvas.Width)
+            {
+                x -= Width;
+            }
+
+            if (y + Height > Canvas.Height)
+            {
+                y -= Height;
+            }
+
+            SetPosition(x, y);
         }
 
         /// <summary>
@@ -289,7 +303,7 @@ namespace Intersect.Client.Framework.Gwen.Control
             base.SizeToChildren(width, height);
             if (width)
             {
-                var maxWidth = this.Width;
+                var maxWidth = 0;
                 foreach (var child in Children)
                 {
                     if (child.Width > maxWidth)
@@ -307,7 +321,7 @@ namespace Intersect.Client.Framework.Gwen.Control
         public override JObject GetJson()
         {
             var obj = base.GetJson();
-            if (this.GetType() != typeof(CheckBox))
+            if (!(this is CheckBox))
             {
                 obj.Add("BackgroundTemplate", mBackgroundTemplateFilename);
                 obj.Add("ItemTextColor", Color.ToString(mItemNormalTextColor));
@@ -325,7 +339,7 @@ namespace Intersect.Client.Framework.Gwen.Control
             {
                 SetBackgroundTemplate(
                     GameContentManager.Current.GetTexture(
-                        GameContentManager.TextureType.Gui, (string) obj["BackgroundTemplate"]
+                        Framework.Content.TextureType.Gui, (string) obj["BackgroundTemplate"]
                     ), (string) obj["BackgroundTemplate"]
                 );
             }
@@ -352,7 +366,7 @@ namespace Intersect.Client.Framework.Gwen.Control
 
         private void UpdateItemStyles()
         {
-            var menuItems = Children.Where(x => x.GetType() == typeof(MenuItem)).ToArray();
+            var menuItems = Children.Where(x => x is MenuItem).ToArray();
             foreach (var item in menuItems)
             {
                 var itm = (MenuItem) item;
@@ -375,7 +389,7 @@ namespace Intersect.Client.Framework.Gwen.Control
         {
             if (texture == null && !string.IsNullOrWhiteSpace(fileName))
             {
-                texture = GameContentManager.Current?.GetTexture(GameContentManager.TextureType.Gui, fileName);
+                texture = GameContentManager.Current?.GetTexture(Framework.Content.TextureType.Gui, fileName);
             }
 
             mBackgroundTemplateFilename = fileName;

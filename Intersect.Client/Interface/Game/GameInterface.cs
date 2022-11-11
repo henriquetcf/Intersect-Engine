@@ -1,4 +1,7 @@
-﻿using Intersect.Client.Framework.Gwen.Control;
+using System;
+
+using Intersect.Client.Core;
+using Intersect.Client.Framework.Gwen.Control;
 using Intersect.Client.General;
 using Intersect.Client.Interface.Game.Bag;
 using Intersect.Client.Interface.Game.Bank;
@@ -6,21 +9,24 @@ using Intersect.Client.Interface.Game.Chat;
 using Intersect.Client.Interface.Game.Crafting;
 using Intersect.Client.Interface.Game.EntityPanel;
 using Intersect.Client.Interface.Game.Hotbar;
+using Intersect.Client.Interface.Game.Inventory;
 using Intersect.Client.Interface.Game.Shop;
 using Intersect.Client.Interface.Game.Trades;
 using Intersect.Client.Networking;
 using Intersect.Enums;
 using Intersect.GameObjects;
 
-using JetBrains.Annotations;
-
 namespace Intersect.Client.Interface.Game
 {
 
-    public class GameInterface
+    public partial class GameInterface : MutableInterface
     {
 
         public bool FocusChat;
+
+        public bool UnfocusChat;
+
+        public bool ChatFocussed => mChatBox.HasFocus;
 
         //Public Components - For clicking/dragging
         public HotBarWindow Hotbar;
@@ -35,8 +41,6 @@ namespace Intersect.Client.Interface.Game
 
         private CraftingWindow mCraftingWindow;
 
-        private DebugMenu mDebugMenu;
-
         private EventWindow mEventWindow;
 
         private PictureWindow mPictureWindow;
@@ -44,6 +48,8 @@ namespace Intersect.Client.Interface.Game
         private QuestOfferWindow mQuestOfferWindow;
 
         private ShopWindow mShopWindow;
+
+        private MapItemWindow mMapItemWindow;
 
         private bool mShouldCloseBag;
 
@@ -71,25 +77,30 @@ namespace Intersect.Client.Interface.Game
 
         private bool mShouldUpdateFriendsList;
 
+        private bool mShouldUpdateGuildList;
+
+        private bool mShouldHideGuildWindow;
+
         private string mTradingTarget;
 
         private TradingWindow mTradingWindow;
 
         public EntityBox PlayerBox;
 
-        public GameInterface([NotNull] Canvas myCanvas)
+        public GameInterface(Canvas canvas) : base(canvas)
         {
-            GameCanvas = myCanvas;
+            GameCanvas = canvas;
             EscapeMenu = new EscapeMenu(GameCanvas) {IsHidden = true};
+            AnnouncementWindow = new AnnouncementWindow(GameCanvas) { IsHidden = true };
 
             InitGameGui();
         }
 
-        [NotNull]
         public Canvas GameCanvas { get; }
 
-        [NotNull]
         public EscapeMenu EscapeMenu { get; }
+
+        public AnnouncementWindow AnnouncementWindow { get; }
 
         public Menu GameMenu { get; private set; }
 
@@ -99,6 +110,7 @@ namespace Intersect.Client.Interface.Game
             GameMenu = new Menu(GameCanvas);
             Hotbar = new HotBarWindow(GameCanvas);
             PlayerBox = new EntityBox(GameCanvas, EntityTypes.Player, Globals.Me, true);
+            PlayerBox.SetEntity(Globals.Me);
             if (mPictureWindow == null)
             {
                 mPictureWindow = new PictureWindow(GameCanvas);
@@ -106,7 +118,8 @@ namespace Intersect.Client.Interface.Game
 
             mEventWindow = new EventWindow(GameCanvas);
             mQuestOfferWindow = new QuestOfferWindow(GameCanvas);
-            mDebugMenu = new DebugMenu(GameCanvas);
+            mMapItemWindow = new MapItemWindow(GameCanvas);
+            mBankWindow = new BankWindow(GameCanvas);
         }
 
         //Chatbox
@@ -119,6 +132,17 @@ namespace Intersect.Client.Interface.Game
         public void NotifyUpdateFriendsList()
         {
             mShouldUpdateFriendsList = true;
+        }
+
+        //Guild Window
+        public void NotifyUpdateGuildList()
+        {
+            mShouldUpdateGuildList = true;
+        }
+
+        public void HideGuildWindow()
+        {
+            mShouldHideGuildWindow = true;
         }
 
         //Admin Window
@@ -180,9 +204,7 @@ namespace Intersect.Client.Interface.Game
 
         public void OpenBank()
         {
-            mBankWindow?.Close();
-
-            mBankWindow = new BankWindow(GameCanvas);
+            mBankWindow.Open();
             mShouldOpenBank = false;
             Globals.InBank = true;
         }
@@ -205,6 +227,16 @@ namespace Intersect.Client.Interface.Game
             mBagWindow = new BagWindow(GameCanvas);
             mShouldOpenBag = false;
             Globals.InBag = true;
+        }
+
+        public BagWindow GetBagWindow()
+        {
+            return mBagWindow;
+        }
+
+        public BankWindow GetBankWindow()
+        {
+            return mBankWindow;
         }
 
         //Crafting
@@ -260,18 +292,6 @@ namespace Intersect.Client.Interface.Game
             Globals.InTrade = true;
         }
 
-        public void ShowHideDebug()
-        {
-            if (mDebugMenu.IsVisible())
-            {
-                mDebugMenu.Hide();
-            }
-            else
-            {
-                mDebugMenu.Show();
-            }
-        }
-
         public void ShowAdminWindow()
         {
             if (mAdminWindow == null)
@@ -297,7 +317,7 @@ namespace Intersect.Client.Interface.Game
             mAdminWindow.SetName(name);
         }
 
-        public void Draw()
+        public void Update()
         {
             if (Globals.Me != null && PlayerBox?.MyEntity != Globals.Me)
             {
@@ -308,9 +328,11 @@ namespace Intersect.Client.Interface.Game
             GameMenu?.Update(mShouldUpdateQuestLog);
             mShouldUpdateQuestLog = false;
             Hotbar?.Update();
-            mDebugMenu?.Update();
             EscapeMenu.Update();
             PlayerBox?.Update();
+            mMapItemWindow.Update();
+            AnnouncementWindow?.Update();
+            mPictureWindow?.Update();
 
             if (Globals.QuestOffers.Count > 0)
             {
@@ -324,11 +346,11 @@ namespace Intersect.Client.Interface.Game
 
             if (Globals.Picture != null)
             {
-                if (mPictureWindow.Picture != Globals.Picture ||
-                    mPictureWindow.Size != Globals.PictureSize ||
-                    mPictureWindow.Clickable != Globals.PictureClickable)
+                if (mPictureWindow.Picture != Globals.Picture.Picture ||
+                    mPictureWindow.Size != Globals.Picture.Size ||
+                    mPictureWindow.Clickable != Globals.Picture.Clickable)
                 {
-                    mPictureWindow.Setup(Globals.Picture, Globals.PictureSize, Globals.PictureClickable);
+                    mPictureWindow.Setup(Globals.Picture.Picture, Globals.Picture.Size, Globals.Picture.Clickable);
                 }
             }
             else
@@ -356,7 +378,6 @@ namespace Intersect.Client.Interface.Game
 
             if (mShopWindow != null && (!mShopWindow.IsVisible() || mShouldCloseShop))
             {
-                PacketSender.SendCloseShop();
                 CloseShop();
             }
 
@@ -368,21 +389,16 @@ namespace Intersect.Client.Interface.Game
                 OpenBank();
                 GameMenu.OpenInventory();
             }
-
-            if (mBankWindow != null)
+            else if (mShouldCloseBank)
             {
-                if (!mBankWindow.IsVisible() || mShouldCloseBank)
-                {
-                    PacketSender.SendCloseBank();
-                    CloseBank();
-                }
-                else
-                {
-                    mBankWindow.Update();
-                }
+                CloseBank();
+            }
+            else
+            {
+                mBankWindow.Update();
             }
 
-            mShouldCloseBank = false;
+
 
             //Bag Update
             if (mShouldOpenBag)
@@ -394,7 +410,6 @@ namespace Intersect.Client.Interface.Game
             {
                 if (!mBagWindow.IsVisible() || mShouldCloseBag)
                 {
-                    PacketSender.SendCloseBag();
                     CloseBagWindow();
                 }
                 else
@@ -416,7 +431,6 @@ namespace Intersect.Client.Interface.Game
             {
                 if (!mCraftingWindow.IsVisible() || mShouldCloseCraftingTable)
                 {
-                    PacketSender.SendCloseCrafting();
                     CloseCraftingTable();
                 }
                 else
@@ -445,7 +459,6 @@ namespace Intersect.Client.Interface.Game
                 {
                     if (!mTradingWindow.IsVisible())
                     {
-                        PacketSender.SendDeclineTrade();
                         CloseTrading();
                     }
                     else
@@ -461,6 +474,18 @@ namespace Intersect.Client.Interface.Game
                 mShouldUpdateFriendsList = false;
             }
 
+            if (mShouldUpdateGuildList)
+            {
+                GameMenu.UpdateGuildList();
+                mShouldUpdateGuildList = false;
+            }
+
+            if (mShouldHideGuildWindow)
+            {
+                GameMenu.HideGuildWindow();
+                mShouldHideGuildWindow = false;
+            }
+
             mShouldCloseTrading = false;
 
             if (FocusChat)
@@ -469,6 +494,15 @@ namespace Intersect.Client.Interface.Game
                 FocusChat = false;
             }
 
+            if (UnfocusChat)
+            {
+                mChatBox.UnFocus();
+                UnfocusChat = false;
+            }
+        }
+
+        public void Draw()
+        {
             GameCanvas.RenderCanvas();
         }
 
@@ -477,13 +511,15 @@ namespace Intersect.Client.Interface.Game
             Globals.GameShop = null;
             mShopWindow?.Close();
             mShopWindow = null;
+            PacketSender.SendCloseShop();
         }
 
         private void CloseBank()
         {
-            mBankWindow?.Close();
-            mBankWindow = null;
+            mBankWindow.Close();
             Globals.InBank = false;
+            PacketSender.SendCloseBank();
+            mShouldCloseBank = false;
         }
 
         private void CloseBagWindow()
@@ -491,6 +527,7 @@ namespace Intersect.Client.Interface.Game
             mBagWindow?.Close();
             mBagWindow = null;
             Globals.InBag = false;
+            PacketSender.SendCloseBag();
         }
 
         private void CloseCraftingTable()
@@ -498,6 +535,7 @@ namespace Intersect.Client.Interface.Game
             mCraftingWindow?.Close();
             mCraftingWindow = null;
             Globals.InCraft = false;
+            PacketSender.SendCloseCrafting();
         }
 
         private void CloseTrading()
@@ -505,6 +543,49 @@ namespace Intersect.Client.Interface.Game
             mTradingWindow?.Close();
             mTradingWindow = null;
             Globals.InTrade = false;
+            PacketSender.SendDeclineTrade();
+        }
+
+        public bool CloseAllWindows()
+        {
+            var closedWindows = false;
+            if (mBagWindow != null && mBagWindow.IsVisible())
+            {
+                CloseBagWindow();
+                closedWindows = true;
+            }
+
+            if (mTradingWindow != null && mTradingWindow.IsVisible())
+            {
+                CloseTrading();
+                closedWindows = true;
+            }
+
+            if (mBankWindow != null && mBankWindow.IsVisible())
+            {
+                CloseBank();
+                closedWindows = true;
+            }
+
+            if (mCraftingWindow != null && mCraftingWindow.IsVisible() && !mCraftingWindow.IsCrafting)
+            {
+                CloseCraftingTable();
+                closedWindows = true;
+            }
+
+            if (mShopWindow != null && mShopWindow.IsVisible())
+            {
+                CloseShop();
+                closedWindows = true;
+            }
+
+            if (GameMenu != null && GameMenu.HasWindowsOpen())
+            {
+                GameMenu.CloseAllWindows();
+                closedWindows = true;
+            }
+
+            return closedWindows;
         }
 
         //Dispose

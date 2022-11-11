@@ -1,11 +1,14 @@
-﻿namespace Intersect
+using MessagePack;
+
+namespace Intersect
 {
-
-    public struct Point
+    [MessagePackObject]
+    public partial struct Point
     {
-
+        [Key(0)]
         public int X { get; set; }
 
+        [Key(1)]
         public int Y { get; set; }
 
         public Point(int x, int y)
@@ -34,18 +37,6 @@
             return X.GetHashCode() ^ Y.GetHashCode();
         }
 
-        public static Point Empty => new Point();
-
-        public static bool operator !=(Point left, Point right)
-        {
-            return left.X != right.X || left.Y != right.Y;
-        }
-
-        public static bool operator ==(Point left, Point right)
-        {
-            return left.X == right.X && left.Y == right.Y;
-        }
-
         public static string ToString(Point pnt)
         {
             return pnt.X + "," + pnt.Y;
@@ -67,6 +58,26 @@
 
             return new Point(parts[0], parts[1]);
         }
+
+        public static Point Empty => new Point();
+
+        public static bool operator !=(Point left, Point right)
+        {
+            return left.X != right.X || left.Y != right.Y;
+        }
+
+        public static bool operator ==(Point left, Point right)
+        {
+            return left.X == right.X && left.Y == right.Y;
+        }
+
+        public static Point operator +(Point left, Point right) => new Point(left.X + right.X, left.Y + right.Y);
+
+        public static Point operator -(Point left, Point right) => new Point(left.X + right.X, left.Y + right.Y);
+
+        public static Point operator *(Point point, float scalar) => new Point((int)(point.X * scalar), (int)(point.Y * scalar));
+
+        public static Point operator /(Point point, float scalar) => new Point((int)(point.X / scalar), (int)(point.Y / scalar));
 
     }
 

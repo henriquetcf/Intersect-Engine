@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -10,7 +11,8 @@ using System.Windows.Forms;
 
 using DarkUI.Controls;
 using DarkUI.Forms;
-
+using Intersect.Compression;
+using Intersect.Config;
 using Intersect.Editor.Classes.ContentManagement;
 using Intersect.Editor.Content;
 using Intersect.Editor.Forms.DockingElements;
@@ -22,6 +24,7 @@ using Intersect.Editor.Maps;
 using Intersect.Editor.Networking;
 using Intersect.Enums;
 using Intersect.GameObjects;
+using Intersect.Localization;
 using Intersect.Network;
 using Intersect.Updater;
 
@@ -85,6 +88,8 @@ namespace Intersect.Editor.Forms
         public FrmMain()
         {
             InitializeComponent();
+            Icon = System.Drawing.Icon.ExtractAssociatedIcon(System.Reflection.Assembly.GetExecutingAssembly().Location);
+
             dockLeft.Theme = new VS2015DarkTheme();
             Globals.MapListWindow = new FrmMapList();
             Globals.MapListWindow.Show(dockLeft, DockState.DockRight);
@@ -128,37 +133,48 @@ namespace Intersect.Editor.Forms
 
         private void InitLocalization()
         {
+            InitLocalizationMenus();
+            InitLocalizationToolstrip();
+        }
+
+        private void InitLocalizationMenus()
+        {
+            InitLocalizationMenuFile();
+            InitLocalizationMenuEdit();
+            InitLocalizationMenuView();
+            InitLocalizationMenuGameEditors();
+            InitLocalizationMenuTools();
+            InitLocalizationMenuHelp();
+        }
+
+        private void InitLocalizationMenuFile()
+        {
             fileToolStripMenuItem.Text = Strings.MainForm.file;
-            saveMapToolStripMenuItem.Text = Strings.MainForm.savemap;
-            toolStripBtnSaveMap.Text = Strings.MainForm.savemap;
+            saveMapToolStripMenuItem.Text = Strings.MainForm.SaveMap;
             newMapToolStripMenuItem.Text = Strings.MainForm.newmap;
-            toolStripBtnNewMap.Text = Strings.MainForm.newmap;
             importMapToolStripMenuItem.Text = Strings.MainForm.importmap;
             exportMapToolStripMenuItem.Text = Strings.MainForm.exportmap;
             optionsToolStripMenuItem.Text = Strings.MainForm.options;
             exitToolStripMenuItem.Text = Strings.MainForm.exit;
+        }
 
+        private void InitLocalizationMenuEdit()
+        {
             editToolStripMenuItem.Text = Strings.MainForm.edit;
-            undoToolStripMenuItem.Text = Strings.MainForm.undo;
-            redoToolStripMenuItem.Text = Strings.MainForm.redo;
-            cutToolStripMenuItem.Text = Strings.MainForm.cut;
-            copyToolStripMenuItem.Text = Strings.MainForm.copy;
-            pasteToolStripMenuItem.Text = Strings.MainForm.paste;
-            toolStripBtnUndo.Text = Strings.MainForm.undo;
-            toolStripBtnRedo.Text = Strings.MainForm.redo;
-            toolStripBtnCut.Text = Strings.MainForm.cut;
-            toolStripBtnCopy.Text = Strings.MainForm.copy;
-            toolStripBtnPaste.Text = Strings.MainForm.paste;
-
-            fillToolStripMenuItem.Text = Strings.MainForm.fill;
-            toolStripBtnFill.Text = Strings.MainForm.fill;
-            eraseLayerToolStripMenuItem.Text = Strings.MainForm.erase;
-            toolStripBtnErase.Text = Strings.MainForm.erase;
-
+            undoToolStripMenuItem.Text = Strings.MainForm.Undo;
+            redoToolStripMenuItem.Text = Strings.MainForm.Redo;
+            cutToolStripMenuItem.Text = Strings.MainForm.Cut;
+            copyToolStripMenuItem.Text = Strings.MainForm.Copy;
+            pasteToolStripMenuItem.Text = Strings.MainForm.Paste;
+            fillToolStripMenuItem.Text = Strings.MainForm.Fill;
+            eraseLayerToolStripMenuItem.Text = Strings.MainForm.Erase;
             selectToolStripMenuItem.Text = Strings.MainForm.selectlayers;
             allLayersToolStripMenuItem.Text = Strings.MainForm.alllayers;
             currentLayerOnlyToolStripMenuItem.Text = Strings.MainForm.currentonly;
+        }
 
+        private void InitLocalizationMenuView()
+        {
             viewToolStripMenuItem.Text = Strings.MainForm.view;
             hideDarknessToolStripMenuItem.Text = Strings.MainForm.darkness;
             hideFogToolStripMenuItem.Text = Strings.MainForm.fog;
@@ -167,7 +183,10 @@ namespace Intersect.Editor.Forms
             hideEventsToolStripMenuItem.Text = Strings.MainForm.Events;
             hideTilePreviewToolStripMenuItem.Text = Strings.MainForm.tilepreview;
             mapGridToolStripMenuItem.Text = Strings.MainForm.grid;
+        }
 
+        private void InitLocalizationMenuGameEditors()
+        {
             contentEditorsToolStripMenuItem.Text = Strings.MainForm.editors;
             animationEditorToolStripMenuItem.Text = Strings.MainForm.animationeditor;
             classEditorToolStripMenuItem.Text = Strings.MainForm.classeditor;
@@ -183,26 +202,52 @@ namespace Intersect.Editor.Forms
             spellEditorToolStripMenuItem.Text = Strings.MainForm.spelleditor;
             variableEditorToolStripMenuItem.Text = Strings.MainForm.variableeditor;
             timeEditorToolStripMenuItem.Text = Strings.MainForm.timeeditor;
+        }
 
+        private void InitLocalizationMenuTools()
+        {
             toolsToolStripMenuItem.Text = Strings.MainForm.tools;
-            packClientTexturesToolStripMenuItem.Text = Strings.MainForm.packtextures;
+            packageUpdateToolStripMenuItem.Text = Strings.MainForm.MenuToolsPackageUpdate;
+        }
 
+        private void InitLocalizationMenuHelp()
+        {
             helpToolStripMenuItem.Text = Strings.MainForm.help;
             postQuestionToolStripMenuItem.Text = Strings.MainForm.postquestion;
             toolStripButtonQuestion.Text = Strings.MainForm.postquestion;
             reportBugToolStripMenuItem.Text = Strings.MainForm.reportbug;
             toolStripButtonBug.Text = Strings.MainForm.reportbug;
             aboutToolStripMenuItem.Text = Strings.MainForm.about;
+        }
 
-            toolStripBtnPen.Text = Strings.MainForm.pen;
-            toolStripBtnSelect.Text = Strings.MainForm.selection;
-            toolStripBtnRect.Text = Strings.MainForm.rectangle;
-            toolStripBtnEyeDrop.Text = Strings.MainForm.droppler;
+        private void InitLocalizationToolstrip()
+        {
+            toolStripBtnNewMap.Text = Strings.MainForm.newmap;
+            toolStripBtnSaveMap.Text = Strings.MainForm.SaveMap;
+
+            toolStripBtnCut.Text = Strings.MainForm.Cut;
+            toolStripBtnCopy.Text = Strings.MainForm.Copy;
+            toolStripBtnPaste.Text = Strings.MainForm.Paste;
+
+            toolStripBtnUndo.Text = Strings.MainForm.Undo;
+            toolStripBtnRedo.Text = Strings.MainForm.Redo;
+
+            toolStripBtnBrush.Text = Strings.MainForm.Brush;
+            toolStripBtnSelect.Text = Strings.MainForm.Selection;
+            toolStripBtnRect.Text = Strings.MainForm.Rectangle;
+
+            toolStripBtnFlipVertical.Text = Strings.MainForm.FlipVertical;
+            toolStripBtnFlipHorizontal.Text = Strings.MainForm.FlipHorizontal;
+
+            toolStripBtnFill.Text = Strings.MainForm.Fill;
+            toolStripBtnErase.Text = Strings.MainForm.Erase;
+            toolStripBtnEyeDrop.Text = Strings.MainForm.EyeDroppler;
+
             toolStripTimeButton.Text = Strings.MainForm.lighting;
+
             toolStripBtnScreenshot.Text = Strings.MainForm.screenshot;
+
             toolStripBtnRun.Text = Strings.MainForm.run;
-            toolStripBtnFlipHorizontal.Text = Strings.MainForm.fliphorizontal;
-            toolStripBtnFlipVertical.Text = Strings.MainForm.flipvertical;
         }
 
         private void InitExternalTools()
@@ -245,41 +290,31 @@ namespace Intersect.Editor.Forms
 
         private void FrmMain_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.KeyData == (Keys.Control | Keys.Z))
+            switch (e.KeyData)
             {
-                toolStripBtnUndo_Click(null, null);
+                case Keys.Control | Keys.Z:
+                    toolStripBtnUndo_Click(null, null);
+                    return;
 
-                return;
-            }
-            else if (e.KeyData == (Keys.Control | Keys.Y))
-            {
-                toolStripBtnRedo_Click(null, null);
+                case Keys.Control | Keys.Y:
+                    toolStripBtnRedo_Click(null, null);
+                    return;
 
-                return;
-            }
-            else if (e.KeyData == (Keys.Control | Keys.X))
-            {
-                toolStripBtnCut_Click(null, null);
+                case Keys.Control | Keys.X:
+                    toolStripBtnCut_Click(null, null);
+                    return;
 
-                return;
-            }
-            else if (e.KeyData == (Keys.Control | Keys.C))
-            {
-                toolStripBtnCopy_Click(null, null);
+                case Keys.Control | Keys.C:
+                    toolStripBtnCopy_Click(null, null);
+                    return;
 
-                return;
-            }
-            else if (e.KeyData == (Keys.Control | Keys.V))
-            {
-                toolStripBtnPaste_Click(null, null);
+                case Keys.Control | Keys.V:
+                    toolStripBtnPaste_Click(null, null);
+                    return;
 
-                return;
-            }
-            else if (e.KeyData == (Keys.Control | Keys.S))
-            {
-                toolStripBtnSaveMap_Click(null, null);
-
-                return;
+                case Keys.Control | Keys.S:
+                    toolStripBtnSaveMap_Click(null, null);
+                    return;
             }
 
             var xDiff = 0;
@@ -288,35 +323,76 @@ namespace Intersect.Editor.Forms
                 dockLeft.ActiveContent == null &&
                 Globals.MapEditorWindow.DockPanel.ActiveDocument == Globals.MapEditorWindow)
             {
-                if (e.KeyCode == Keys.W || e.KeyCode == Keys.Up)
+                switch (e.KeyCode)
                 {
-                    yDiff -= 20;
-                }
+                    // Shortcuts: Map grid scrolling.
+                    case Keys.W:
+                    case Keys.Up:
+                        yDiff -= 20;
+                        break;
 
-                if (e.KeyCode == Keys.S || e.KeyCode == Keys.Down)
-                {
-                    yDiff += 20;
-                }
+                    case Keys.S:
+                    case Keys.Down:
+                        yDiff += 20;
+                        break;
 
-                if (e.KeyCode == Keys.A || e.KeyCode == Keys.Left)
-                {
-                    xDiff -= 20;
-                }
+                    case Keys.A:
+                    case Keys.Left:
+                        xDiff -= 20;
+                        break;
 
-                if (e.KeyCode == Keys.D || e.KeyCode == Keys.Right)
-                {
-                    xDiff += 20;
+                    case Keys.D:
+                    case Keys.Right:
+                        xDiff += 20;
+                        break;
+
+                    // Shortcuts: Map grid Tools.
+                    case Keys.B: // Brush Tool.
+                        toolStripBtnBrush_Click(null, null);
+                        break;
+
+                    case Keys.M: // Marquee Selection Tool.
+                        toolStripBtnSelect_Click(null, null);
+                        break;
+
+                    case Keys.R: // Rectangle Fill Tool.
+                        toolStripBtnRect_Click(null, null);
+                        break;
+
+                    case Keys.PageUp: // Vertical Flip Selection Tool.
+                        toolStripBtnFlipVertical_Click(null, null);
+                        break;
+
+                    case Keys.PageDown: // Horizontal Flip Selection Tool.
+                        toolStripBtnFlipHorizontal_Click(null, null);
+                        break;
+
+                    case Keys.F: // Fill Layer Tool.
+                        toolStripBtnFill_Click(null, null);
+                        break;
+
+                    case Keys.E: // Erase Tool.
+                        toolStripBtnErase_Click(null, null);
+                        break;
+
+                    case Keys.I: // Eyedropper Tool.
+                        toolStripBtnEyeDrop_Click(null, null);
+                        break;
+
+                    case Keys.Delete: // Delete Selection.
+                        ToolKeyDelete();
+                        break;
                 }
 
                 if (xDiff != 0 || yDiff != 0)
                 {
-                    var hWnd = WindowFromPoint((System.Drawing.Point) MousePosition);
+                    var hWnd = WindowFromPoint(MousePosition);
                     if (hWnd != IntPtr.Zero)
                     {
-                        var ctl = Control.FromHandle(hWnd);
+                        var ctl = FromHandle(hWnd);
                         if (ctl != null)
                         {
-                            if (ctl.GetType() == typeof(ComboBox) || ctl.GetType() == typeof(DarkComboBox))
+                            if (ctl is ComboBox || ctl is DarkComboBox)
                             {
                                 return;
                             }
@@ -369,6 +445,18 @@ namespace Intersect.Editor.Forms
             Globals.InEditor = true;
             GrabMouseDownEvents();
             UpdateRunState();
+
+            //Init layer visibility buttons
+            foreach (var layer in Options.Instance.MapOpts.Layers.All)
+            {
+                Strings.Tiles.maplayers.TryGetValue(layer.ToLower(), out LocalizedString layerName);
+                if (layerName == null) layerName = layer;
+                var btn = new ToolStripMenuItem(layerName);
+                btn.Checked = true;
+                btn.Click += HideLayerBtn_Click;
+                btn.Tag = layer;
+                layersToolStripMenuItem.DropDownItems.Add(btn);
+            }
         }
 
         protected override void OnClosed(EventArgs e)
@@ -390,11 +478,11 @@ namespace Intersect.Editor.Forms
             form.ShowDialog(this);
         }
 
-        public void EnterMap(Guid mapId)
+        public void EnterMap(Guid mapId, bool userEntered = false)
         {
             if (InvokeRequired)
             {
-                Invoke((MethodInvoker) delegate { EnterMap(mapId); });
+                Invoke((MethodInvoker) delegate { EnterMap(mapId, userEntered); });
 
                 return;
             }
@@ -418,6 +506,12 @@ namespace Intersect.Editor.Forms
             PacketSender.SendNeedMap(mapId);
             PacketSender.SendNeedGrid(mapId);
             Core.Graphics.TilePreviewUpdated = true;
+
+            // Save that we've opened this map last if this was a user triggered action. This way we can load it again should we restart the editor.
+            if (userEntered)
+            {
+                Preferences.SavePreference("LastMapOpened", mapId.ToString());
+            }
         }
 
         private void GrabMouseDownEvents()
@@ -429,16 +523,16 @@ namespace Intersect.Editor.Forms
         {
             foreach (Control t in e.Controls)
             {
-                if (t.GetType() == typeof(MenuStrip))
+                if (t is MenuStrip menuStrip)
                 {
-                    foreach (ToolStripMenuItem t1 in ((MenuStrip) t).Items)
+                    foreach (ToolStripMenuItem t1 in menuStrip.Items)
                     {
                         t1.MouseDown += MouseDownHandler;
                     }
 
                     t.MouseDown += MouseDownHandler;
                 }
-                else if (t.GetType() == typeof(PropertyGrid))
+                else if (t is PropertyGrid)
                 {
                 }
                 else
@@ -501,8 +595,8 @@ namespace Intersect.Editor.Forms
                 redoToolStripMenuItem.Enabled = false;
             }
 
-            //Process the Fill/Erase Buttons
-            if (Globals.CurrentLayer <= Options.LayerCount)
+            //Process the Fill/Erase Buttons, these should display for all valid map layers as well as Attributes.
+            if (Options.Instance.MapOpts.Layers.All.Contains(Globals.CurrentLayer) || Globals.CurrentLayer == LayerOptions.Attributes)
             {
                 toolStripBtnFill.Enabled = true;
                 fillToolStripMenuItem.Enabled = true;
@@ -518,40 +612,40 @@ namespace Intersect.Editor.Forms
             }
 
             //Process the Tool Buttons
-            toolStripBtnPen.Enabled = false;
+            toolStripBtnBrush.Enabled = false;
             toolStripBtnSelect.Enabled = true;
             toolStripBtnRect.Enabled = false;
             toolStripBtnEyeDrop.Enabled = false;
-            if (Globals.CurrentLayer == Options.LayerCount) //Attributes
+            if (Globals.CurrentLayer == LayerOptions.Attributes)
             {
-                toolStripBtnPen.Enabled = true;
+                toolStripBtnBrush.Enabled = true;
                 toolStripBtnRect.Enabled = true;
             }
-            else if (Globals.CurrentLayer == Options.LayerCount + 1) //Lights
+            else if (Globals.CurrentLayer == LayerOptions.Lights)
             {
                 Globals.CurrentTool = (int) EditingTool.Selection;
             }
-            else if (Globals.CurrentLayer == Options.LayerCount + 2) //Events
+            else if (Globals.CurrentLayer == LayerOptions.Events)
             {
                 Globals.CurrentTool = (int) EditingTool.Selection;
             }
-            else if (Globals.CurrentLayer == Options.LayerCount + 3) //NPCS
+            else if (Globals.CurrentLayer == LayerOptions.Npcs)
             {
                 Globals.CurrentTool = (int) EditingTool.Selection;
             }
             else
             {
-                toolStripBtnPen.Enabled = true;
+                toolStripBtnBrush.Enabled = true;
                 toolStripBtnRect.Enabled = true;
                 toolStripBtnEyeDrop.Enabled = true;
             }
 
             switch (Globals.CurrentTool)
             {
-                case (int) EditingTool.Pen:
-                    if (!toolStripBtnPen.Checked)
+                case (int) EditingTool.Brush:
+                    if (!toolStripBtnBrush.Checked)
                     {
-                        toolStripBtnPen.Checked = true;
+                        toolStripBtnBrush.Checked = true;
                     }
 
                     if (toolStripBtnSelect.Checked)
@@ -601,9 +695,9 @@ namespace Intersect.Editor.Forms
 
                     break;
                 case (int) EditingTool.Selection:
-                    if (toolStripBtnPen.Checked)
+                    if (toolStripBtnBrush.Checked)
                     {
-                        toolStripBtnPen.Checked = false;
+                        toolStripBtnBrush.Checked = false;
                     }
 
                     if (!toolStripBtnSelect.Checked)
@@ -653,9 +747,9 @@ namespace Intersect.Editor.Forms
 
                     break;
                 case (int) EditingTool.Rectangle:
-                    if (toolStripBtnPen.Checked)
+                    if (toolStripBtnBrush.Checked)
                     {
-                        toolStripBtnPen.Checked = false;
+                        toolStripBtnBrush.Checked = false;
                     }
 
                     if (toolStripBtnSelect.Checked)
@@ -705,9 +799,9 @@ namespace Intersect.Editor.Forms
 
                     break;
                 case (int) EditingTool.Fill:
-                    if (toolStripBtnPen.Checked)
+                    if (toolStripBtnBrush.Checked)
                     {
-                        toolStripBtnPen.Checked = false;
+                        toolStripBtnBrush.Checked = false;
                     }
 
                     if (toolStripBtnSelect.Checked)
@@ -757,9 +851,9 @@ namespace Intersect.Editor.Forms
 
                     break;
                 case (int) EditingTool.Erase:
-                    if (toolStripBtnPen.Checked)
+                    if (toolStripBtnBrush.Checked)
                     {
-                        toolStripBtnPen.Checked = false;
+                        toolStripBtnBrush.Checked = false;
                     }
 
                     if (toolStripBtnSelect.Checked)
@@ -809,9 +903,9 @@ namespace Intersect.Editor.Forms
 
                     break;
                 case (int) EditingTool.Droppler:
-                    if (toolStripBtnPen.Checked)
+                    if (toolStripBtnBrush.Checked)
                     {
-                        toolStripBtnPen.Checked = false;
+                        toolStripBtnBrush.Checked = false;
                     }
 
                     if (toolStripBtnSelect.Checked)
@@ -875,9 +969,9 @@ namespace Intersect.Editor.Forms
 
             if (Globals.Dragging)
             {
-                if (Globals.MainForm.ActiveControl.GetType() == typeof(DockPane))
+                if (Globals.MainForm.ActiveControl is DockPane dockPane)
                 {
-                    var ctrl = ((DockPane) Globals.MainForm.ActiveControl).ActiveControl;
+                    var ctrl = dockPane.ActiveControl;
                     if (ctrl != Globals.MapEditorWindow)
                     {
                         Globals.MapEditorWindow.PlaceSelection();
@@ -898,7 +992,7 @@ namespace Intersect.Editor.Forms
                 {
                     if (DarkMessageBox.ShowError(
                             Strings.Errors.disconnectedsave, Strings.Errors.disconnectedsavecaption,
-                            DarkDialogButton.YesNo, Properties.Resources.Icon
+                            DarkDialogButton.YesNo, Icon
                         ) ==
                         DialogResult.Yes)
                     {
@@ -914,7 +1008,7 @@ namespace Intersect.Editor.Forms
                 {
                     DarkMessageBox.ShowError(
                         Strings.Errors.disconnectedclosing, Strings.Errors.disconnected, DarkDialogButton.Ok,
-                        Properties.Resources.Icon
+                        Icon
                     );
 
                     Application.Exit();
@@ -928,7 +1022,7 @@ namespace Intersect.Editor.Forms
             if (Globals.CurrentMap.Changed() &&
                 DarkMessageBox.ShowInformation(
                     Strings.Mapping.savemapdialoguesure, Strings.Mapping.savemap, DarkDialogButton.YesNo,
-                    Properties.Resources.Icon
+                    Icon
                 ) ==
                 DialogResult.Yes)
             {
@@ -955,7 +1049,7 @@ namespace Intersect.Editor.Forms
         {
             if (DarkMessageBox.ShowWarning(
                     Strings.Mapping.newmap, Strings.Mapping.newmapcaption, DarkDialogButton.YesNo,
-                    Properties.Resources.Icon
+                    Icon
                 ) !=
                 DialogResult.Yes)
             {
@@ -965,7 +1059,7 @@ namespace Intersect.Editor.Forms
             if (Globals.CurrentMap.Changed() &&
                 DarkMessageBox.ShowInformation(
                     Strings.Mapping.savemapdialogue, Strings.Mapping.savemap, DarkDialogButton.YesNo,
-                    Properties.Resources.Icon
+                    Icon
                 ) ==
                 DialogResult.Yes)
             {
@@ -1020,7 +1114,7 @@ namespace Intersect.Editor.Forms
             //    else
             //    {
             //        DarkMessageBox.ShowError(Strings.Errors.importfailed,
-            //            Strings.Errors.importfailedcaption, DarkDialogButton.Ok, Properties.Resources.Icon);
+            //            Strings.Errors.importfailedcaption, DarkDialogButton.Ok, Icon);
             //    }
             //}
         }
@@ -1040,7 +1134,7 @@ namespace Intersect.Editor.Forms
         //Edit
         private void fillToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (Globals.CurrentLayer <= Options.LayerCount)
+            if (Options.Instance.MapOpts.Layers.All.Contains(Globals.CurrentLayer))
             {
                 Globals.MapEditorWindow.FillLayer();
             }
@@ -1048,7 +1142,7 @@ namespace Intersect.Editor.Forms
 
         private void eraseLayerToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (Globals.CurrentLayer <= Options.LayerCount)
+            if (Options.Instance.MapOpts.Layers.All.Contains(Globals.CurrentLayer))
             {
                 Globals.MapEditorWindow.EraseLayer();
             }
@@ -1207,6 +1301,24 @@ namespace Intersect.Editor.Forms
             PacketSender.SendOpenEditor(GameObjectType.Time);
         }
 
+        private void layersToolStripMenuItem_DropDownOpened(object sender, EventArgs e)
+        {
+            foreach (var itm in ((ToolStripMenuItem)sender).DropDownItems)
+            {
+                var btn = (ToolStripMenuItem)itm;
+                btn.Checked = Globals.MapLayersWindow.LayerVisibility[(string)btn.Tag];
+            }
+        }
+
+        private void HideLayerBtn_Click(object sender, EventArgs e)
+        {
+            var btn = ((ToolStripMenuItem)sender);
+            var tag = (string)btn.Tag;
+            btn.Checked = !btn.Checked;
+            Globals.MapLayersWindow.LayerVisibility[tag] = btn.Checked;
+            Globals.MapLayersWindow.SetLayer(Globals.CurrentLayer);
+        }
+
         //Help
         private void postQuestionToolStripMenuItem_Click(object sender, EventArgs e)
         {
@@ -1303,9 +1415,9 @@ namespace Intersect.Editor.Forms
             }
         }
 
-        private void toolStripBtnPen_Click(object sender, EventArgs e)
+        private void toolStripBtnBrush_Click(object sender, EventArgs e)
         {
-            Globals.CurrentTool = (int) EditingTool.Pen;
+            Globals.CurrentTool = (int) EditingTool.Brush;
         }
 
         private void toolStripBtnSelect_Click(object sender, EventArgs e)
@@ -1357,6 +1469,16 @@ namespace Intersect.Editor.Forms
             Globals.MapEditorWindow.Cut();
         }
 
+        private static void ToolKeyDelete()
+        {
+            if (Globals.CurrentTool != (int)EditingTool.Selection)
+            {
+                return;
+            }
+
+            Globals.MapEditorWindow.Delete();
+        }
+
         private void toolStripTimeButton_Click(object sender, EventArgs e)
         {
         }
@@ -1364,14 +1486,14 @@ namespace Intersect.Editor.Forms
         private void toolStripBtnRun_Click(object sender, EventArgs e)
         {
             var path = Preferences.LoadPreference("ClientPath");
-            if (path != "" && File.Exists(path))
+            if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
             {
                 var processStartInfo = new ProcessStartInfo(path)
                 {
                     WorkingDirectory = Directory.GetParent(path).FullName
                 };
 
-                var process = Process.Start(processStartInfo);
+                _ = Process.Start(processStartInfo);
             }
         }
 
@@ -1396,7 +1518,7 @@ namespace Intersect.Editor.Forms
             toolStripTimeButton.DropDownItems.Clear();
             var time = new DateTime(2000, 1, 1, 0, 0, 0);
             var x = 0;
-            var btn = new ToolStripDropDownButton(Strings.General.none)
+            var btn = new ToolStripDropDownButton(Strings.General.None)
             {
                 Tag = null
             };
@@ -1459,7 +1581,7 @@ namespace Intersect.Editor.Forms
         {
             toolStripBtnRun.Enabled = false;
             var path = Preferences.LoadPreference("ClientPath");
-            if (path != "" && File.Exists(path))
+            if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
             {
                 toolStripBtnRun.Enabled = true;
             }
@@ -1612,7 +1734,7 @@ namespace Intersect.Editor.Forms
                 Globals.CurrentMap.Changed() &&
                 DarkMessageBox.ShowWarning(
                     Strings.Mapping.maphaschangesdialog, Strings.Mapping.mapnotsaved, DarkDialogButton.YesNo,
-                    Properties.Resources.Icon
+                    Icon
                 ) ==
                 DialogResult.No)
             {
@@ -1636,25 +1758,61 @@ namespace Intersect.Editor.Forms
 
         private void packClientTexturesToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Globals.PackingProgressForm = new FrmProgress();
-            Globals.PackingProgressForm.SetTitle(Strings.TexturePacking.title);
-            var packingthread = new Thread(() => packTextures());
-            packingthread.Start();
-            Globals.PackingProgressForm.ShowDialog();
+
         }
 
-        private void packTextures()
+        private void packAssets(string rootDirectory)
         {
-            //TODO: Make the max pack size a configurable option, along with the packing heuristic that the texture packer class should use.
-            var maxPackSize = 2048;
-            var packsPath = Path.Combine("resources", "packs");
+            //TODO: Make packing heuristic that the texture packer class should use configurable.
+            var preferenceMusicPackSize = Preferences.LoadPreference("MusicPackSize");
+            var preferenceSoundPackSize = Preferences.LoadPreference("SoundPackSize");
+            var preferenceTexturePackSize = Preferences.LoadPreference("TexturePackSize");
+
+            if (!int.TryParse(preferenceMusicPackSize, out var musicPackSize))
+            {
+                _ = MessageBox.Show(
+                    this,
+                    Strings.Errors.UnableToParseInvalidIntegerFormat.ToString(preferenceMusicPackSize),
+                    Strings.Errors.InvalidInputXCaption.ToString(Strings.Options.MusicPackSize),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error
+                );
+                return;
+            }
+
+            if (!int.TryParse(preferenceSoundPackSize, out var soundPackSize))
+            {
+                _ = MessageBox.Show(
+                    this,
+                    Strings.Errors.UnableToParseInvalidIntegerFormat.ToString(preferenceSoundPackSize),
+                    Strings.Errors.InvalidInputXCaption.ToString(Strings.Options.SoundPackSize),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error
+                );
+                return;
+            }
+
+            if (!int.TryParse(preferenceTexturePackSize, out var texturePackSize))
+            {
+                _ = MessageBox.Show(
+                    this,
+                    Strings.Errors.UnableToParseInvalidIntegerFormat.ToString(preferenceTexturePackSize),
+                    Strings.Errors.InvalidInputXCaption.ToString(Strings.Options.TextureSize),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error
+                );
+                return;
+            }
+
+            var resourcesDirectory = Path.Combine(rootDirectory, "resources");
+            var packsDirectory = Path.Combine(resourcesDirectory, "packs");
 
             //Delete Old Packs
-            Globals.PackingProgressForm.SetProgress(Strings.TexturePacking.deleting, 10, false);
+            Globals.PackingProgressForm.SetProgress(Strings.AssetPacking.deleting, 10, false);
             Application.DoEvents();
-            if (Directory.Exists(packsPath))
+            if (Directory.Exists(packsDirectory))
             {
-                var di = new DirectoryInfo(packsPath);
+                var di = new DirectoryInfo(packsDirectory);
 
                 foreach (var file in di.GetFiles())
                 {
@@ -1668,11 +1826,11 @@ namespace Intersect.Editor.Forms
             }
             else
             {
-                Directory.CreateDirectory(packsPath);
+                Directory.CreateDirectory(packsDirectory);
             }
 
             //Create two 'sets' of graphics we want to pack. Tilesets + Fogs in one set, everything else in the other.
-            Globals.PackingProgressForm.SetProgress(Strings.TexturePacking.collecting, 20, false);
+            Globals.PackingProgressForm.SetProgress(Strings.AssetPacking.collecting, 20, false);
             Application.DoEvents();
             var toPack = new HashSet<Texture>();
             foreach (var tex in GameContentManager.TilesetTextures)
@@ -1693,7 +1851,7 @@ namespace Intersect.Editor.Forms
                 }
             }
 
-            Globals.PackingProgressForm.SetProgress(Strings.TexturePacking.calculating, 30, false);
+            Globals.PackingProgressForm.SetProgress(Strings.AssetPacking.calculating, 30, false);
             Application.DoEvents();
             var packs = new List<TexturePacker>();
             while (toPack.Count > 0)
@@ -1714,16 +1872,16 @@ namespace Intersect.Editor.Forms
 
                 if (!inserted)
                 {
-                    if (tex.GetWidth() > maxPackSize || tex.GetHeight() > maxPackSize)
+                    if (tex.GetWidth() > texturePackSize || tex.GetHeight() > texturePackSize)
                     {
                         //Own texture
-                        var pack = new TexturePacker(tex.GetWidth(), tex.GetHeight(), false);
+                        var pack = new TexturePacker(resourcesDirectory, tex.GetWidth(), tex.GetHeight(), false);
                         packs.Add(pack);
                         pack.InsertTex(tex);
                     }
                     else
                     {
-                        var pack = new TexturePacker(maxPackSize, maxPackSize, true);
+                        var pack = new TexturePacker(resourcesDirectory, texturePackSize, texturePackSize, true);
                         packs.Add(pack);
                         if (!pack.InsertTex(tex))
                         {
@@ -1733,7 +1891,7 @@ namespace Intersect.Editor.Forms
                 }
             }
 
-            Globals.PackingProgressForm.SetProgress(Strings.TexturePacking.exporting, 40, false);
+            Globals.PackingProgressForm.SetProgress(Strings.AssetPacking.exporting, 40, false);
             Application.DoEvents();
             var packIndex = 0;
             foreach (var pack in packs)
@@ -1742,77 +1900,176 @@ namespace Intersect.Editor.Forms
                 packIndex++;
             }
 
-            Globals.PackingProgressForm.SetProgress(Strings.TexturePacking.done, 100, false);
+            // Package up sounds!
+            Globals.PackingProgressForm.SetProgress(Strings.AssetPacking.sounds, 80, false);
             Application.DoEvents();
-            System.Threading.Thread.Sleep(1000);
+            AssetPacker.PackageAssets(Path.Combine(resourcesDirectory, "sounds"), "*.wav", packsDirectory, "sound.index", "sound", ".asset", soundPackSize);
+
+            // Package up music!
+            Globals.PackingProgressForm.SetProgress(Strings.AssetPacking.music, 90, false);
+            Application.DoEvents();
+            AssetPacker.PackageAssets(Path.Combine(resourcesDirectory, "music"), "*.ogg", packsDirectory, "music.index", "music", ".asset", musicPackSize);
+
+            Globals.PackingProgressForm.SetProgress(Strings.AssetPacking.done, 100, false);
+            Application.DoEvents();
+            Thread.Sleep(1000);
 
             Globals.PackingProgressForm.NotifyClose();
         }
 
-        private void packageUpdateToolStripMenuItem_Click(object sender, EventArgs e)
+        private string SelectDirectoryWithRetry(string description, string initialPath, bool showNewFolderButton)
         {
-            using(var fbd = new FolderBrowserDialog())
+            var attempts = 0;
+            while (attempts < 2)
             {
-                DialogResult result = fbd.ShowDialog();
-
-                if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
+                using (var folderBrowserDialog = new FolderBrowserDialog()
                 {
-                    Uri baseDir = new Uri(Directory.GetCurrentDirectory() + "\\");
-                    Uri selectedDir = new Uri(fbd.SelectedPath + "\\");
-                    if (baseDir.IsBaseOf(selectedDir))
+                    Description = description,
+                    SelectedPath = initialPath,
+                    ShowNewFolderButton = showNewFolderButton,
+                })
+                {
+                    var selectionDialogResult = folderBrowserDialog.ShowDialog();
+                    switch (selectionDialogResult)
                     {
-                        //Error, cannot be put within editor folder else it would try to include itself?
-                        MessageBox.Show(
-                            Strings.UpdatePacking.InvalidBase, Strings.UpdatePacking.Error, MessageBoxButtons.OK
-                        );
-                        return;
-                    }
+                        case DialogResult.OK:
+                            var selectedPath = folderBrowserDialog.SelectedPath;
+                            if (string.IsNullOrWhiteSpace(selectedPath) || !Directory.Exists(selectedPath))
+                            {
+                                var retryDialogueResult = DarkMessageBox.ShowError(
+                                    Strings.Errors.InvalidDirectory,
+                                    Strings.Errors.InvalidDirectoryCaption,
+                                    DarkDialogButton.RetryCancel,
+                                    Icon
+                                );
 
-                    Update existingUpdate = null;
-                    if (Directory.Exists(fbd.SelectedPath) && File.Exists(Path.Combine(fbd.SelectedPath, "update.json")))
-                    {
-                        //Existing update! Offer to create a differential folder where the only files within will be those that have changed
-                        if (MessageBox.Show(
-                                Strings.UpdatePacking.Differential, Strings.UpdatePacking.DifferentialTitle,
-                                MessageBoxButtons.YesNo
-                            ) ==
-                            DialogResult.Yes)
-                        {
-                            existingUpdate = JsonConvert.DeserializeObject<Update>(File.ReadAllText(Path.Combine(fbd.SelectedPath, "update.json")));
-                        }
+                                switch (retryDialogueResult)
+                                {
+                                    case DialogResult.Retry:
+                                        break;
+
+                                    case DialogResult.Cancel:
+                                        return default;
+                                }
+                                break;
+                            }
+
+                            return selectedPath;
+
+                        case DialogResult.Cancel:
+                            return default;
+
+                        case DialogResult.None:
+                        case DialogResult.Abort:
+                        case DialogResult.Retry:
+                        case DialogResult.Ignore:
+                        case DialogResult.Yes:
+                        case DialogResult.No:
+                            throw new NotImplementedException($"No handler defined for {selectionDialogResult}, should be {DialogResult.OK} or {DialogResult.Cancel}.");
+
+                        default:
+                            throw new IndexOutOfRangeException($"{selectionDialogResult} is not a valid {nameof(System.Windows.Forms.DialogResult)}.");
                     }
-                    else
-                    {
-                        if (Directory.EnumerateFileSystemEntries(fbd.SelectedPath).Any())
-                        {
-                            //Folder must be empty!
-                            MessageBox.Show(
-                                Strings.UpdatePacking.Empty, Strings.UpdatePacking.Error, MessageBoxButtons.OK
-                            );
-                            return;
-                        }
-                    }
-                    
-                    Globals.UpdateCreationProgressForm = new FrmProgress();
-                    Globals.UpdateCreationProgressForm.SetTitle(Strings.UpdatePacking.Title);
-                    Globals.UpdateCreationProgressForm.SetProgress(Strings.UpdatePacking.Deleting,10,false);
-                    var packingthread = new Thread(() => createUpdate(fbd.SelectedPath, existingUpdate));
-                    packingthread.Start();
-                    Globals.UpdateCreationProgressForm.ShowDialog();
                 }
             }
+
+            return default;
         }
 
-        private void createUpdate(string path, Update existingUpdate)
+        private void packageUpdateToolStripMenuItem_Click(object sender, EventArgs e) => PackageUpdate();
+
+        private void PackageUpdate()
         {
-            if (!Directory.Exists(path))
+            var lastSourceDirectory = Preferences.LoadPreference("update_sourceDirectory");
+            var lastTargetDirectory = Preferences.LoadPreference("update_targetDirectory");
+
+            var sourceDirectory = SelectDirectoryWithRetry(Strings.UpdatePacking.SourceDirectoryPromptDescription, string.IsNullOrWhiteSpace(lastSourceDirectory) ? Environment.CurrentDirectory : lastSourceDirectory, false);
+            if (sourceDirectory == default)
             {
-                Directory.CreateDirectory((path));
+                return;
             }
 
-            if (Directory.Exists(path))
+            var targetDirectory = SelectDirectoryWithRetry(Strings.UpdatePacking.TargetDirectoryPromptDescription, string.IsNullOrWhiteSpace(lastTargetDirectory) ? Environment.CurrentDirectory : lastTargetDirectory, true);
+            if (targetDirectory == default)
             {
-                DirectoryInfo di = new DirectoryInfo(path);
+                return;
+            }
+
+            Preferences.SavePreference("update_sourceDirectory", sourceDirectory);
+            Preferences.SavePreference("update_targetDirectory", targetDirectory);
+
+            var baseDir = new Uri($@"{sourceDirectory}\");
+            var selectedDir = new Uri($@"{targetDirectory}\");
+
+            if (baseDir.IsBaseOf(selectedDir))
+            {
+                // Error, cannot be put within editor folder else it would try to include itself?
+                _ = DarkMessageBox.ShowError(
+                    Strings.UpdatePacking.InvalidBase,
+                    Strings.UpdatePacking.Error,
+                    DarkDialogButton.Ok,
+                    Icon
+                );
+                return;
+            }
+
+            Update existingUpdate = null;
+            var targetUpdateFile = Path.Combine(targetDirectory, "update.json");
+            if (File.Exists(targetUpdateFile))
+            {
+                //Existing update! Offer to create a differential folder where the only files within will be those that have changed
+                if (DarkMessageBox.ShowError(
+                        Strings.UpdatePacking.Differential,
+                        Strings.UpdatePacking.DifferentialTitle,
+                        DarkDialogButton.YesNo,
+                        Icon
+                    ) ==
+                    DialogResult.Yes)
+                {
+                    existingUpdate = JsonConvert.DeserializeObject<Update>(File.ReadAllText(targetUpdateFile));
+                }
+            }
+            else if (Directory.EnumerateFileSystemEntries(targetDirectory).Any())
+            {
+                //Folder must be empty!
+                _ = DarkMessageBox.ShowError(
+                    Strings.UpdatePacking.Empty,
+                    Strings.UpdatePacking.Error,
+                    DarkDialogButton.Ok,
+                    Icon
+                );
+                return;
+            }
+
+            // Are we configured to package up our assets for an update?
+            var packageUpdateAssets = Preferences.LoadPreference("PackageUpdateAssets");
+            if (!string.IsNullOrWhiteSpace(packageUpdateAssets) && Convert.ToBoolean(packageUpdateAssets, CultureInfo.InvariantCulture))
+            {
+                Globals.PackingProgressForm = new FrmProgress();
+                Globals.PackingProgressForm.SetTitle(Strings.AssetPacking.title);
+                var assetThread = new Thread(() => packAssets(sourceDirectory));
+                assetThread.Start();
+                _ = Globals.PackingProgressForm.ShowDialog();
+            }
+
+            Globals.UpdateCreationProgressForm = new FrmProgress();
+            Globals.UpdateCreationProgressForm.SetTitle(Strings.UpdatePacking.Title);
+            Globals.UpdateCreationProgressForm.SetProgress(Strings.UpdatePacking.Deleting, 10, false);
+            var packingthread = new Thread(() => createUpdate(sourceDirectory, targetDirectory, existingUpdate));
+            packingthread.Start();
+            _ = Globals.UpdateCreationProgressForm.ShowDialog();
+        }
+
+        private void createUpdate(string sourceDirectory, string targetDirectory, Update existingUpdate)
+        {
+            if (!Directory.Exists(targetDirectory))
+            {
+                Directory.CreateDirectory((targetDirectory));
+            }
+
+            if (Directory.Exists(targetDirectory))
+            {
+                DirectoryInfo di = new DirectoryInfo(targetDirectory);
 
                 foreach (FileInfo file in di.GetFiles())
                 {
@@ -1824,62 +2081,95 @@ namespace Intersect.Editor.Forms
                     dir.Delete(true);
                 }
 
-                //Intersect excluded files
-                var excludeFiles = new string[] {"resources/mapcache.db", "update.json", "version.json"};
-                var clientExcludeFiles = new List<string>(){"intersect editor.exe", "intersect editor.pdb"};
-                var excludeExtensions = new string[] {".dll", ".xml", ".config", ".php"};
-                var excludeDirectories = new string[] {"logs", "screenshots"};
+                // Intersect excluded files
+                var editorBaseName = Process.GetCurrentProcess()?.ProcessName.ToLowerInvariant() ?? "intersect editor";
+                var editorFileNameExe = $"{editorBaseName}.exe";
+                var editorFileNamePdb = $"{editorBaseName}.pdb";
+                var excludeFiles = new string[] { "resources/mapcache.db", "update.json", "version.json" };
+                var clientExcludeFiles = new List<string>(){ editorFileNameExe, editorFileNamePdb, "resources/editor_strings.json" };
+                var editorExcludeFiles = new List<string>() { "resources/client_strings.json" };
+                var excludeExtensions = new string[] { ".dll", ".xml", ".config", ".php" };
+                var excludeDirectories = new string[] { "logs", "screenshots" };
 
-
-                if (Directory.Exists(Path.Combine("resources", "packs")))
+                var resourcesDirectory = Path.Combine(sourceDirectory, "resources");
+                var packsDirectory = Path.Combine(resourcesDirectory, "packs");
+                if (Directory.Exists(packsDirectory))
                 {
-                    var packs = Directory.GetFiles(Path.Combine("resources", "packs"), "*.json");
+                    var packs = Directory.GetFiles(packsDirectory, "*.meta");
+                    editorExcludeFiles.AddRange(packs);
                     foreach (var pack in packs)
                     {
-                        var obj = JObject.Parse(File.ReadAllText(pack))["frames"];
+                        var obj = JObject.Parse(GzipCompression.ReadDecompressedString(pack))["frames"];
                         foreach (var frame in obj.Children())
                         {
                             var filename = frame["filename"].ToString();
                             clientExcludeFiles.Add(filename);
                         }
                     }
+
+                    var soundIndex = Path.Combine(packsDirectory, "sound.index");
+                    if (File.Exists(soundIndex))
+                    {
+                        editorExcludeFiles.Add(soundIndex);
+                        using (var soundPacker = new AssetPacker(soundIndex, packsDirectory))
+                        {
+                            editorExcludeFiles.AddRange(soundPacker.CachedPackages.Select(cachedPackage => Path.Combine(soundPacker.PackageLocation, cachedPackage)));
+                            foreach (var sound in soundPacker.FileList)
+                            {
+                                // Add as lowercase as our update generator checks for lowercases!
+                                clientExcludeFiles.Add(Path.Combine(resourcesDirectory, "sounds", sound.ToLower(CultureInfo.CurrentCulture)).Replace('\\', '/'));
+                            }
+                        }
+                    }
+
+                    var musicIndex = Path.Combine(packsDirectory, "music.index");
+                    if (File.Exists(musicIndex))
+                    {
+                        editorExcludeFiles.Add(musicIndex);
+                        using (var musicPacker = new AssetPacker(musicIndex, packsDirectory))
+                        {
+                            editorExcludeFiles.AddRange(musicPacker.CachedPackages.Select(cachedPackage => Path.Combine(musicPacker.PackageLocation, cachedPackage)));
+                            foreach (var music in musicPacker.FileList)
+                            {
+                                // Add as lowercase as our update generator checks for lowercases!
+                                clientExcludeFiles.Add(Path.Combine(resourcesDirectory, "music", music.ToLower(CultureInfo.CurrentCulture)).Replace('\\', '/'));
+                            }
+                        }
+                    }
+
                 }
-
-
 
                 var fileCount = Directory.GetFiles(Directory.GetCurrentDirectory(), "*.*", SearchOption.AllDirectories).Length;
 
                 var update = new Update();
-                queryFilesForUpdate(update, excludeFiles, clientExcludeFiles.ToArray(), excludeExtensions, excludeDirectories, Directory.GetCurrentDirectory(), Directory.GetCurrentDirectory(), path, 0, fileCount, existingUpdate);
-
+                queryFilesForUpdate(update, excludeFiles, clientExcludeFiles, editorExcludeFiles, excludeExtensions, excludeDirectories, sourceDirectory, sourceDirectory, sourceDirectory, targetDirectory, 0, fileCount, existingUpdate);
             }
         }
 
-        private int queryFilesForUpdate(Update update, string[] excludeFiles, string[] clientExcludeFiles, string[] excludeExtensions, string[] excludeDirectories, string workingDirectory, string path, string updatePath, int filesProcessed, int fileCount, Update existingUpdate)
+        private int queryFilesForUpdate(Update update, string[] excludeFiles, IEnumerable<string> clientExcludeFiles, IEnumerable<string> editorExcludeFiles, string[] excludeExtensions, string[] excludeDirectories, string workingDirectory, string sourcePath, string currentSourcePath, string targetPath, int filesProcessed, int fileCount, Update existingUpdate)
         {
-            DirectoryInfo di = new DirectoryInfo(path);
-            Uri workingDir = new Uri(workingDirectory + "/");
+            var di = new DirectoryInfo(currentSourcePath);
+            var workingDir = new Uri(workingDirectory + "/");
 
-            foreach (FileInfo file in di.GetFiles())
+            foreach (var file in di.GetFiles())
             {
-                string relativePath = Uri.UnescapeDataString(workingDir.MakeRelativeUri(new Uri(Path.Combine(path, file.Name))).ToString().Replace('\\', '/'));
+                var relativePath = Uri.UnescapeDataString(workingDir.MakeRelativeUri(new Uri(Path.Combine(currentSourcePath, file.Name))).ToString().Replace('\\', '/'));
                 if (!excludeFiles.Contains(relativePath) && !excludeExtensions.Contains(file.Extension))
                 {
-                    var md5Hash = "";
+                    var md5Hash = string.Empty;
                     using (var md5 = MD5.Create())
                     {
                         using (var stream = new BufferedStream(File.OpenRead(file.FullName), 1200000))
                         {
-                            md5Hash = BitConverter.ToString(md5.ComputeHash(stream)).Replace("-", "").ToLowerInvariant();
+                            md5Hash = BitConverter.ToString(md5.ComputeHash(stream)).Replace("-", string.Empty).ToLower(CultureInfo.InvariantCulture);
                         }
                     }
 
-                    var updateFile = new UpdateFile(relativePath, md5Hash, file.Length);
-
-                    if (clientExcludeFiles.Contains(relativePath.ToLower()))
+                    var updateFile = new UpdateFile(relativePath, md5Hash, file.Length)
                     {
-                        updateFile.ClientIgnore = true;
-                    }
+                        ClientIgnore = clientExcludeFiles.Contains(relativePath.ToLower(CultureInfo.CurrentCulture)),
+                        EditorIgnore = editorExcludeFiles.Contains(relativePath.ToLower(CultureInfo.CurrentCulture)),
+                    };
 
                     update.Files.Add(updateFile);
 
@@ -1890,16 +2180,16 @@ namespace Intersect.Editor.Forms
                         existingFile = existingUpdate.Files.FirstOrDefault(f => f.Path == updateFile.Path);
                     }
 
-                    if (existingFile == null || existingFile.Size != updateFile.Size || existingFile.Hash != updateFile.Hash) { 
-                        var relativeFolder = Uri.UnescapeDataString(workingDir.MakeRelativeUri(new Uri(path + "/")).ToString().Replace('\\','/'));
+                    if (existingFile == null || existingFile.Size != updateFile.Size || existingFile.Hash != updateFile.Hash) {
+                        var relativeFolder = Uri.UnescapeDataString(workingDir.MakeRelativeUri(new Uri(currentSourcePath + "/")).ToString().Replace('\\', '/'));
                         if (!string.IsNullOrEmpty(relativeFolder))
                         {
-                            Directory.CreateDirectory(Path.Combine(updatePath, relativeFolder));
-                            File.Copy(file.FullName, Path.Combine(updatePath, relativeFolder, file.Name));
+                            _ = Directory.CreateDirectory(Path.Combine(targetPath, relativeFolder));
+                            File.Copy(file.FullName, Path.Combine(targetPath, relativeFolder, file.Name));
                         }
                         else
                         {
-                            File.Copy(file.FullName, Path.Combine(updatePath, file.Name));
+                            File.Copy(file.FullName, Path.Combine(targetPath, file.Name));
                         }
                     }
                 }
@@ -1922,10 +2212,10 @@ namespace Intersect.Editor.Forms
 
             foreach (var dir in di.GetDirectories())
             {
-                string relativePath = Uri.UnescapeDataString(workingDir.MakeRelativeUri(new Uri(Path.Combine(path, dir.Name))).ToString().Replace('\\', '/'));
+                var relativePath = Uri.UnescapeDataString(workingDir.MakeRelativeUri(new Uri(Path.Combine(currentSourcePath, dir.Name))).ToString().Replace('\\', '/'));
                 if (!excludeDirectories.Contains(relativePath))
                 {
-                    filesProcessed = queryFilesForUpdate(update,excludeFiles, clientExcludeFiles, excludeExtensions,excludeFiles,workingDirectory,Path.Combine(path,dir.Name), updatePath, filesProcessed, fileCount, existingUpdate);
+                    filesProcessed = queryFilesForUpdate(update, excludeFiles, clientExcludeFiles, editorExcludeFiles, excludeExtensions, excludeFiles, workingDirectory, sourcePath, Path.Combine(currentSourcePath, dir.Name), targetPath, filesProcessed, fileCount, existingUpdate);
                 }
                 else
                 {
@@ -1933,14 +2223,15 @@ namespace Intersect.Editor.Forms
                 }
             }
 
-            if (path == Directory.GetCurrentDirectory())
+            if (string.Equals(sourcePath, currentSourcePath, StringComparison.Ordinal))
             {
                 Globals.UpdateCreationProgressForm.SetProgress(Strings.UpdatePacking.Done, 100, false);
                 Application.DoEvents();
-                System.Threading.Thread.Sleep(1000);
+                Thread.Sleep(1000);
 
                 //TODO: Open folder with update files
-                File.WriteAllText(Path.Combine(updatePath, "update.json"), JsonConvert.SerializeObject(update, Formatting.Indented, new JsonSerializerSettings { DefaultValueHandling = DefaultValueHandling.Ignore }));
+                var targetJsonPath = Path.Combine(targetPath, "update.json");
+                File.WriteAllText(targetJsonPath, JsonConvert.SerializeObject(update, Formatting.Indented, new JsonSerializerSettings { DefaultValueHandling = DefaultValueHandling.Ignore }));
 
                 Globals.UpdateCreationProgressForm.NotifyClose();
             }

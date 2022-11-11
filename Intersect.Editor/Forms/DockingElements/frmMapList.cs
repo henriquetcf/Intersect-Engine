@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Windows.Forms;
 
 using DarkUI.Forms;
@@ -19,6 +19,7 @@ namespace Intersect.Editor.Forms.DockingElements
         public FrmMapList()
         {
             InitializeComponent();
+            Icon = System.Drawing.Icon.ExtractAssociatedIcon(System.Reflection.Assembly.GetExecutingAssembly().Location);
 
             //Enable Editting of the list
             mapTreeList.EnableEditing(contextMenuStrip1);
@@ -27,20 +28,20 @@ namespace Intersect.Editor.Forms.DockingElements
 
         private void NodeDoubleClick(object sender, TreeNodeMouseClickEventArgs e)
         {
-            if (e.Node.Tag.GetType() == typeof(MapListMap))
+            if (e.Node.Tag is MapListMap map)
             {
                 if (Globals.CurrentMap != null &&
                     Globals.CurrentMap.Changed() &&
                     DarkMessageBox.ShowInformation(
                         Strings.Mapping.savemapdialogue, Strings.Mapping.savemap, DarkDialogButton.YesNo,
-                        Properties.Resources.Icon
+                        Icon
                     ) ==
                     DialogResult.Yes)
                 {
                     SaveMap();
                 }
 
-                Globals.MainForm.EnterMap(((MapListMap) e.Node.Tag).MapId);
+                Globals.MainForm.EnterMap(map.MapId, true);
             }
         }
 
@@ -67,7 +68,7 @@ namespace Intersect.Editor.Forms.DockingElements
         private void InitLocalization()
         {
             Text = Strings.MapList.title;
-            btnChronological.Text = Strings.MapList.chronological;
+            btnAlphabetical.Text = Strings.MapList.alphabetical;
             toolSelectMap.Text = Strings.MapList.selectcurrent;
             btnNewMap.Text = Strings.MapList.newmap;
             btnNewFolder.Text = Strings.MapList.newfolder;
@@ -87,14 +88,7 @@ namespace Intersect.Editor.Forms.DockingElements
 
         private void btnNewFolder_Click(object sender, EventArgs e)
         {
-            if (mapTreeList.list.SelectedNode == null)
-            {
-                PacketSender.SendAddFolder(null);
-            }
-            else
-            {
-                PacketSender.SendAddFolder((MapListItem) mapTreeList.list.SelectedNode.Tag);
-            }
+            PacketSender.SendAddFolder(mapTreeList.list.SelectedNode?.Tag as MapListItem);
         }
 
         private void btnRename_Click(object sender, EventArgs e)
@@ -103,7 +97,7 @@ namespace Intersect.Editor.Forms.DockingElements
             {
                 DarkMessageBox.ShowError(
                     Strings.MapList.selecttorename, Strings.MapList.rename, DarkDialogButton.Ok,
-                    Properties.Resources.Icon
+                    Icon
                 );
             }
             else
@@ -118,14 +112,14 @@ namespace Intersect.Editor.Forms.DockingElements
             {
                 DarkMessageBox.ShowError(
                     Strings.MapList.selecttodelete, Strings.MapList.delete, DarkDialogButton.Ok,
-                    Properties.Resources.Icon
+                    Icon
                 );
             }
             else
             {
                 if (DarkMessageBox.ShowWarning(
                         Strings.MapList.deleteconfirm.ToString(((MapListItem) mapTreeList.list.SelectedNode.Tag).Name),
-                        Strings.MapList.delete, DarkDialogButton.YesNo, Properties.Resources.Icon
+                        Strings.MapList.delete, DarkDialogButton.YesNo, Icon
                     ) ==
                     DialogResult.Yes)
                 {
@@ -134,10 +128,10 @@ namespace Intersect.Editor.Forms.DockingElements
             }
         }
 
-        private void btnChronological_Click(object sender, EventArgs e)
+        private void btnAlphabetical_Click(object sender, EventArgs e)
         {
-            btnChronological.Checked = !btnChronological.Checked;
-            mapTreeList.Chronological = btnChronological.Checked;
+            btnAlphabetical.Checked = !btnAlphabetical.Checked;
+            mapTreeList.Chronological = btnAlphabetical.Checked;
             mapTreeList.UpdateMapList();
         }
 
@@ -145,7 +139,7 @@ namespace Intersect.Editor.Forms.DockingElements
         {
             if (DarkMessageBox.ShowWarning(
                     Strings.Mapping.newmap, Strings.Mapping.newmapcaption, DarkDialogButton.YesNo,
-                    Properties.Resources.Icon
+                    Icon
                 ) !=
                 DialogResult.Yes)
             {
@@ -155,7 +149,7 @@ namespace Intersect.Editor.Forms.DockingElements
             if (Globals.CurrentMap.Changed() &&
                 DarkMessageBox.ShowInformation(
                     Strings.Mapping.savemapdialogue, Strings.Mapping.savemap, DarkDialogButton.YesNo,
-                    Properties.Resources.Icon
+                    Icon
                 ) ==
                 DialogResult.Yes)
             {
@@ -180,15 +174,15 @@ namespace Intersect.Editor.Forms.DockingElements
         private void contextMenuStrip1_Opening(object sender, System.ComponentModel.CancelEventArgs e)
         {
             var node = mapTreeList.list.SelectedNode;
-            copyIdToolStripMenuItem.Visible = node != null && node.Tag.GetType() == typeof(MapListMap);
+            copyIdToolStripMenuItem.Visible = node != null && node.Tag is MapListMap;
         }
 
         private void copyIdToolStripMenuItem_Click(object sender, EventArgs e)
         {
             var node = mapTreeList.list.SelectedNode;
-            if (node != null && node.Tag.GetType() == typeof(MapListMap))
+            if (node != null && node.Tag is MapListMap map)
             {
-                var id = ((MapListMap) node.Tag).MapId;
+                var id = map.MapId;
                 Clipboard.SetText(id.ToString());
             }
         }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Web.Http;
 using System.Web.Http.Routing;
@@ -17,8 +17,6 @@ using Intersect.Server.Web.RestApi.Payloads;
 using Intersect.Server.Web.RestApi.RouteProviders;
 using Intersect.Server.Web.RestApi.Services;
 
-using JetBrains.Annotations;
-
 using Microsoft.Owin.Hosting;
 using Microsoft.Owin.Logging;
 
@@ -26,14 +24,17 @@ using Owin;
 
 namespace Intersect.Server.Web.RestApi
 {
-
-    internal sealed class RestApi : IAppConfigurationProvider, IConfigurable<ApiConfiguration>, IDisposable
+    // TODO: Migrate to a proper service
+    internal sealed partial class RestApi : IAppConfigurationProvider, IConfigurable<ApiConfiguration>, IDisposable
     {
+        private readonly object mDisposeLock;
 
-        [CanBeNull] private IDisposable mWebAppHandle;
+        private IDisposable mWebAppHandle;
 
         public RestApi(ushort apiPort)
         {
+            mDisposeLock = new object();
+
             StartOptions = new StartOptions();
 
             Configuration = ApiConfiguration.Create();
@@ -55,10 +56,8 @@ namespace Intersect.Server.Web.RestApi
 
         public bool IsStarted => mWebAppHandle != null;
 
-        [NotNull]
         public StartOptions StartOptions { get; }
 
-        [NotNull]
         private AuthenticationProvider AuthenticationProvider { get; }
 
         public void Configure(IAppBuilder appBuilder)
@@ -71,6 +70,8 @@ namespace Intersect.Server.Web.RestApi
             {
                 throw new InvalidOperationException();
             }
+
+            appBuilder.Use<NetworkFilterMiddleware>(Configuration.AllowedNetworkTypes);
 
             Configuration.Cors.Select(configuration => configuration.AsCorsOptions())
                 ?.ToList()
@@ -111,7 +112,7 @@ namespace Intersect.Server.Web.RestApi
 
         public void Dispose()
         {
-            lock (this)
+            lock (mDisposeLock)
             {
                 if (Disposed || Disposing)
                 {

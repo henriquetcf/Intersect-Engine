@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-
+using System.Web.UI;
 using Intersect.Enums;
 using Intersect.GameObjects;
 using Intersect.Network.Packets.Server;
@@ -14,13 +14,11 @@ using Intersect.Utilities;
 namespace Intersect.Server.Entities
 {
 
-    public class Resource : Entity
+    public partial class Resource : Entity
     {
 
         // Resource Number
         public ResourceBase Base;
-
-        public bool IsDead;
 
         //Respawn
         public long RespawnTime = 0;
@@ -42,30 +40,39 @@ namespace Intersect.Server.Entities
             HideName = true;
         }
 
-        public void Destroy(int dropitems = 0, Entity killer = null)
+        public void Destroy(bool dropItems = false, Entity killer = null)
         {
-            Die(dropitems, killer);
+            lock (EntityLock)
+            {
+                Die(dropItems, killer);
+            }
+            
             PacketSender.SendEntityDie(this);
             PacketSender.SendEntityLeave(this);
         }
 
-        public override void Die(int dropitems = 100, Entity killer = null)
+        public override void Die(bool dropItems = true, Entity killer = null)
         {
-            base.Die(0, killer);
+            lock (EntityLock)
+            {
+                base.Die(false, killer);
+            }
+            
             Sprite = Base.Exhausted.Graphic;
             Passable = Base.WalkableAfter;
-            IsDead = true;
-            if (dropitems > 0)
+            Dead = true;
+
+            if (dropItems)
             {
                 SpawnResourceItems(killer);
                 if (Base.AnimationId != Guid.Empty)
                 {
                     PacketSender.SendAnimationToProximity(
-                        Base.AnimationId, -1, Guid.Empty, MapId, (byte) X, (byte) Y, (int) Directions.Up
+                        Base.AnimationId, -1, Guid.Empty, MapId, (byte)X, (byte)Y, (int)Directions.Up, MapInstanceId
                     );
                 }
             }
-
+ 
             PacketSender.SendEntityDataToProximity(this);
             PacketSender.SendEntityPositionToAll(this);
         }
@@ -96,10 +103,9 @@ namespace Intersect.Server.Entities
                 }
             }
 
-            IsDead = false;
+            Dead = false;
             PacketSender.SendEntityDataToProximity(this);
             PacketSender.SendEntityPositionToAll(this);
-            PacketSender.SendEntityVitals(this);
         }
 
         public void SpawnResourceItems(Entity killer)
@@ -114,10 +120,10 @@ namespace Intersect.Server.Entities
                     if (tileHelper.TryFix())
                     {
                         //Tile is valid.. let's see if its open
-                        var map = MapInstance.Get(tileHelper.GetMapId());
-                        if (map != null)
+                        var mapId = tileHelper.GetMapId();
+                        if (MapController.TryGetInstanceFromMap(mapId, MapInstanceId, out var mapInstance))
                         {
-                            if (!map.TileBlocked(tileHelper.GetX(), tileHelper.GetY()))
+                            if (!mapInstance.TileBlocked(tileHelper.GetX(), tileHelper.GetY()))
                             {
                                 tiles.Add(tileHelper);
                             }
@@ -160,8 +166,11 @@ namespace Intersect.Server.Entities
                 {
                     if (ItemBase.Get(item.ItemId) != null)
                     {
-                        MapInstance.Get(selectedTile.GetMapId())
-                            .SpawnItem(selectedTile.GetX(), selectedTile.GetY(), item, item.Quantity, killer.Id);
+                        var mapId = selectedTile.GetMapId();
+                        if (MapController.TryGetInstanceFromMap(mapId, MapInstanceId, out var mapInstance))
+                        {
+                            mapInstance.SpawnItem(selectedTile.GetX(), selectedTile.GetY(), item, item.Quantity, killer.Id);
+                        }
                     }
                 }
             }
@@ -172,13 +181,13 @@ namespace Intersect.Server.Entities
         public override void ProcessRegen()
         {
             //For now give npcs/resources 10% health back every regen tick... in the future we should put per-npc and per-resource regen settings into their respective editors.
-            if (!IsDead)
+            if (!IsDead())
             {
                 if (Base == null)
                 {
                     return;
                 }
-
+                
                 var vital = Vitals.Health;
 
                 var vitalId = (int) vital;
@@ -197,7 +206,7 @@ namespace Intersect.Server.Entities
 
         public override bool IsPassable()
         {
-            return IsDead & Base.WalkableAfter || !IsDead && Base.WalkableBefore;
+            return IsDead() & Base.WalkableAfter || !IsDead() && Base.WalkableBefore;
         }
 
         public override EntityPacket EntityPacket(EntityPacket packet = null, Player forPlayer = null)
@@ -211,7 +220,7 @@ namespace Intersect.Server.Entities
 
             var pkt = (ResourceEntityPacket) packet;
             pkt.ResourceId = Base.Id;
-            pkt.IsDead = IsDead;
+            pkt.IsDead = IsDead();
 
             return pkt;
         }
@@ -220,7 +229,6 @@ namespace Intersect.Server.Entities
         {
             return EntityTypes.Resource;
         }
-
     }
 
 }

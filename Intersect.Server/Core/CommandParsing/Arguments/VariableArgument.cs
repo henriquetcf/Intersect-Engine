@@ -1,15 +1,13 @@
 ﻿using Intersect.Localization;
 
-using JetBrains.Annotations;
-
 namespace Intersect.Server.Core.CommandParsing.Arguments
 {
 
-    public class VariableArgument<TValue> : CommandArgument<TValue>
+    public partial class VariableArgument<TValue> : CommandArgument<TValue>
     {
 
         public VariableArgument(
-            [NotNull] LocaleArgument localization,
+            LocaleArgument localization,
             bool required = false,
             bool positional = false,
             bool allowsMultiple = false,
@@ -19,8 +17,8 @@ namespace Intersect.Server.Core.CommandParsing.Arguments
         }
 
         public VariableArgument(
-            [NotNull] LocaleArgument localization,
-            [NotNull] ArgumentRequiredPredicate requiredPredicate,
+            LocaleArgument localization,
+            ArgumentRequiredPredicate requiredPredicate,
             bool positional = false,
             bool allowsMultiple = false,
             TValue defaultValue = default(TValue)

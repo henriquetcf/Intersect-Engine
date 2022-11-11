@@ -31,6 +31,8 @@ namespace Intersect.Editor.Forms.Editors
 
         NpcCanBeAttacked,
 
+        Craft
+
     }
 
     public partial class FrmDynamicRequirements : Form
@@ -47,6 +49,8 @@ namespace Intersect.Editor.Forms.Editors
         public FrmDynamicRequirements(ConditionLists lists, RequirementType type)
         {
             InitializeComponent();
+            Icon = System.Drawing.Icon.ExtractAssociatedIcon(System.Reflection.Assembly.GetExecutingAssembly().Location);
+
             mSourceLists = lists;
             mEdittingLists = new ConditionLists(lists.Data());
             UpdateLists();
@@ -93,6 +97,10 @@ namespace Intersect.Editor.Forms.Editors
                     break;
                 case RequirementType.NpcCanBeAttacked:
                     lblInstructions.Text = Strings.DynamicRequirements.instructionsnpccanbeattacked;
+
+                    break;
+                case RequirementType.Craft:
+                    lblInstructions.Text = Strings.DynamicRequirements.instructionscraft;
 
                     break;
                 default:

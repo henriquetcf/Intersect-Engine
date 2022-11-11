@@ -5,6 +5,7 @@ using System.Text;
 
 using Intersect.Client.Core;
 using Intersect.Client.Framework.File_Management;
+using Intersect.Client.Framework.Graphics;
 using Intersect.Client.Framework.Gwen.Control;
 using Intersect.Client.Framework.Gwen.Control.EventArguments;
 using Intersect.Client.Framework.Input;
@@ -17,7 +18,7 @@ using Intersect.Utilities;
 namespace Intersect.Client.Interface.Menu
 {
 
-    public class LoginWindow
+    public partial class LoginWindow
     {
 
         private Button mBackBtn;
@@ -123,21 +124,20 @@ namespace Intersect.Client.Interface.Menu
         private void _usernameTextbox_Clicked(Base sender, ClickedEventArgs arguments)
         {
             Globals.InputManager.OpenKeyboard(
-                GameInput.KeyboardType.Normal, mUsernameTextbox.Text, false, false, false
+                KeyboardType.Normal, mUsernameTextbox.Text, false, false, false
             );
         }
 
         //Methods
         public void Update()
         {
-            if (Networking.Network.Connected)
+            if (!Networking.Network.Connected)
             {
+                Hide();
+                mMainMenu.Show();
+                Interface.MsgboxErrors.Add(new KeyValuePair<string, string>("", Strings.Errors.lostconnection));
                 return;
             }
-
-            Hide();
-            mMainMenu.Show();
-            Interface.MsgboxErrors.Add(new KeyValuePair<string, string>("", Strings.Errors.lostconnection));
 
             // Re-Enable our buttons button if we're not waiting for the server anymore with it disabled.
             if (!Globals.WaitingOnServer && mLoginBtn.IsDisabled)

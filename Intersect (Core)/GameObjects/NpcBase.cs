@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -8,19 +8,16 @@ using Intersect.GameObjects.Events;
 using Intersect.Models;
 using Intersect.Utilities;
 
-using JetBrains.Annotations;
-
 using Newtonsoft.Json;
 
 namespace Intersect.GameObjects
 {
-
-    public class NpcBase : DatabaseObject<NpcBase>, IFolderable
+    public partial class NpcBase : DatabaseObject<NpcBase>, IFolderable
     {
 
         [NotMapped] public ConditionLists AttackOnSightConditions = new ConditionLists();
 
-        [NotMapped] public List<NpcDrop> Drops = new List<NpcDrop>();
+        [NotMapped] public List<Drop> Drops = new List<Drop>();
 
         [NotMapped] public int[] MaxVital = new int[(int) Vitals.VitalCount];
 
@@ -31,6 +28,20 @@ namespace Intersect.GameObjects
         [NotMapped] public int[] Stats = new int[(int) Enums.Stats.StatCount];
 
         [NotMapped] public int[] VitalRegen = new int[(int) Vitals.VitalCount];
+
+        [NotMapped]
+        public List<StatusTypes> Immunities = new List<StatusTypes>();
+
+        [JsonIgnore]
+        [Column("Immunities")]
+        public string ImmunitiesJson
+        {
+            get => JsonConvert.SerializeObject(Immunities);
+            set
+            {
+                Immunities = JsonConvert.DeserializeObject<List<StatusTypes>>(value ?? "") ?? new List<StatusTypes>();
+            }
+        }
 
         [JsonConstructor]
         public NpcBase(Guid id) : base(id)
@@ -79,6 +90,8 @@ namespace Intersect.GameObjects
 
         public bool FocusHighestDamageDealer { get; set; } = true;
 
+        public int ResetRadius { get; set; }
+
         //Conditions
         [Column("PlayerFriendConditions")]
         [JsonIgnore]
@@ -113,6 +126,8 @@ namespace Intersect.GameObjects
 
         public double CritMultiplier { get; set; } = 1.5;
 
+        public double Tenacity { get; set; } = 0.0;
+
         public int AttackSpeedModifier { get; set; }
 
         public int AttackSpeedValue { get; set; }
@@ -146,8 +161,13 @@ namespace Intersect.GameObjects
         public string JsonDrops
         {
             get => JsonConvert.SerializeObject(Drops);
-            set => Drops = JsonConvert.DeserializeObject<List<NpcDrop>>(value);
+            set => Drops = JsonConvert.DeserializeObject<List<Drop>>(value);
         }
+
+        /// <summary>
+        /// If true this npc will drop individual loot for all of those who helped slay it.
+        /// </summary>
+        public bool IndividualizedLoot { get; set; }
 
         public long Experience { get; set; }
 
@@ -190,6 +210,23 @@ namespace Intersect.GameObjects
 
         public string Sprite { get; set; } = "";
 
+        /// <summary>
+        /// The database compatible version of <see cref="Color"/>
+        /// </summary>
+        [Column("Color")]
+        [JsonIgnore]
+        public string JsonColor
+        {
+            get => JsonConvert.SerializeObject(Color);
+            set => Color = !string.IsNullOrWhiteSpace(value) ? JsonConvert.DeserializeObject<Color>(value) : Color.White;
+        }
+
+        /// <summary>
+        /// Defines the ARGB color settings for this Npc.
+        /// </summary>
+        [NotMapped]
+        public Color Color { get; set; } = new Color(255, 255, 255, 255);
+
         [Column("Stats")]
         [JsonIgnore]
         public string JsonStat
@@ -210,7 +247,7 @@ namespace Intersect.GameObjects
         /// <inheritdoc />
         public string Folder { get; set; } = "";
 
-        public SpellBase GetRandomSpell([NotNull] Random random)
+        public SpellBase GetRandomSpell(Random random)
         {
             if (Spells == null || Spells.Count == 0)
             {
@@ -222,17 +259,6 @@ namespace Intersect.GameObjects
 
             return SpellBase.Get(spellId);
         }
-
-    }
-
-    public class NpcDrop
-    {
-
-        public double Chance;
-
-        public Guid ItemId;
-
-        public int Quantity;
 
     }
 

@@ -6,8 +6,6 @@ using System.Web.Cors;
 
 using Intersect.Serialization.Json;
 
-using JetBrains.Annotations;
-
 using Microsoft.Owin.Cors;
 
 using Newtonsoft.Json;
@@ -15,7 +13,7 @@ using Newtonsoft.Json;
 namespace Intersect.Server.Web.RestApi.Configuration
 {
 
-    public struct CorsConfiguration
+    public partial struct CorsConfiguration
     {
 
         public string Origin { get; set; }
@@ -34,7 +32,7 @@ namespace Intersect.Server.Web.RestApi.Configuration
 
     }
 
-    public static class CorsConfigurationExtensions
+    public static partial class CorsConfigurationExtensions
     {
 
         public static CorsOptions AsCorsOptions(this CorsConfiguration corsConfiguration)
@@ -109,7 +107,7 @@ namespace Intersect.Server.Web.RestApi.Configuration
 
         private static void AddCommaSeparatedValuesToCollection(
             string commaSeparatedValues,
-            [NotNull] ICollection<string> collection
+            ICollection<string> collection
         )
         {
             commaSeparatedValues?.Split(',')

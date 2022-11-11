@@ -3,7 +3,6 @@ namespace Intersect.Enums
 
     public enum MapAttributes : byte
     {
-
         Walkable = 0,
 
         Blocked,
@@ -24,7 +23,9 @@ namespace Intersect.Enums
 
         GrappleStone,
 
-        Slide
+        Slide,
+
+        Critter
 
     }
 

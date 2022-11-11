@@ -4,20 +4,23 @@ using Intersect.Server.General;
 namespace Intersect.Server.Entities.Combat
 {
 
-    public class Buff
+    public partial class Buff
     {
 
-        public int BuffType;
+        public int FlatStatcount;
 
-        public long Duration;
+        public int PercentageStatcount;
+
+        public long ExpireTime;
 
         public SpellBase Spell;
 
-        public Buff(SpellBase spell, int buff, int duration)
+        public Buff(SpellBase spell, int flatStats, int percentageStats, long expireTime)
         {
             Spell = spell;
-            BuffType = buff;
-            Duration = Globals.Timing.Milliseconds + duration;
+            FlatStatcount = flatStats;
+            PercentageStatcount = percentageStats;
+            ExpireTime = expireTime;
         }
 
     }

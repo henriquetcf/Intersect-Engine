@@ -1,12 +1,10 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
 
-using JetBrains.Annotations;
-
 namespace Intersect.Logging
 {
 
-    public class Logger : ILogger
+    public partial class Logger : ILogger
     {
 
         public Logger() : this(LogConfiguration.Default) { }
@@ -17,12 +15,11 @@ namespace Intersect.Logging
         {
         }
 
-        public Logger([NotNull] LogConfiguration configuration)
+        public Logger(LogConfiguration configuration)
         {
             Configuration = configuration;
         }
 
-        [NotNull]
         public LogConfiguration Configuration { get; set; }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -1,20 +1,19 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 
 using Intersect.Security.Claims;
+using Intersect.Server.Database.PlayerData;
 using Intersect.Server.Database.PlayerData.Api;
-
-using JetBrains.Annotations;
 
 using Microsoft.Owin.Security.OAuth;
 
 namespace Intersect.Server.Web.RestApi.Authentication.OAuth.Providers
 {
 
-    public class BearerAuthenticationProvider : OAuthBearerAuthenticationProvider
+    public partial class BearerAuthenticationProvider : OAuthBearerAuthenticationProvider
     {
 
-        public override async Task ValidateIdentity([NotNull] OAuthValidateIdentityContext context)
+        public override async Task ValidateIdentity(OAuthValidateIdentityContext context)
         {
             var owinContext = context.OwinContext;
 
@@ -43,6 +42,13 @@ namespace Intersect.Server.Web.RestApi.Authentication.OAuth.Providers
                 return;
             }
 
+            var ban = Ban.Find(userId);
+            if (ban != default)
+            {
+                context.Rejected();
+                return;
+            }
+
             var claimTicketId = identity.FindFirst(IntersectClaimTypes.TicketId);
             if (!Guid.TryParse(claimTicketId?.Value, out var ticketId))
             {
@@ -68,7 +74,7 @@ namespace Intersect.Server.Web.RestApi.Authentication.OAuth.Providers
 
             if (refreshToken.ClientId != clientId || refreshToken.UserId != userId)
             {
-                RefreshToken.Remove(refreshToken.Id, true);
+                _ = RefreshToken.Remove(refreshToken);
                 context.Rejected();
 
                 return;

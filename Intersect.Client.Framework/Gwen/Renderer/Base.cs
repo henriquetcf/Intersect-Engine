@@ -1,7 +1,6 @@
 ﻿using Intersect.Client.Framework.GenericClasses;
 using Intersect.Client.Framework.Graphics;
 #if DEBUG || DIAGNOSTIC
-using Intersect.Logging;
 #endif
 
 using System;
@@ -12,7 +11,7 @@ namespace Intersect.Client.Framework.Gwen.Renderer
     /// <summary>
     ///     Base renderer.
     /// </summary>
-    public class Base : IDisposable
+    public partial class Base : IDisposable
     {
 
         private Rectangle mClipRegion;

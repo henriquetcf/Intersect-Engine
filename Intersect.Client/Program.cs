@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Intersect.Logging;
+
+using System;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -8,13 +10,12 @@ using System.Resources;
 
 namespace Intersect.Client
 {
-
-#if WINDOWS || LINUX
     /// <summary>
     ///     The main class.
     /// </summary>
-    public static class Program
+    static partial class Program
     {
+
         public static string OpenALLink = "";
 
         public static string OpenGLLink = "";
@@ -23,59 +24,64 @@ namespace Intersect.Client
         ///     The main entry point for the application.
         /// </summary>
         [STAThread]
-        public static void Main()
+        static void Main(string[] args)
         {
             CultureInfo.DefaultThreadCurrentCulture = new CultureInfo("en-US");
             CosturaUtility.Initialize();
 
             ExportDependencies();
-            Assembly.LoadFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "MonoGame.Framework.Client.dll"));
+            Assembly.LoadFile(Path.Combine(Environment.CurrentDirectory, "MonoGame.Framework.Client.dll"));
 
             try
             {
-                var type = Type.GetType("Intersect.Client.MonoGame.IntersectGame", true);
+                var type = Type.GetType("Intersect.Client.Core.Bootstrapper", true);
                 Debug.Assert(type != null, "type != null");
-                var instance = Activator.CreateInstance(type);
-                type.InvokeMember("Run", BindingFlags.InvokeMethod, null, instance, null);
+                var method = type.GetMethod("Start");
+                Debug.Assert(method != null, "method != null");
+                method.Invoke(null, new object[] { args });
             }
-            catch (Exception ex)
+            catch (Exception exception)
             {
-                if (ex.InnerException != null &&
-                    ex.InnerException.GetType().Name == "NoSuitableGraphicsDeviceException")
+                switch (exception.InnerException?.GetType().Name)
                 {
-                    var txt = "NoSuitableGraphicsDeviceException" + Environment.NewLine;
-                    txt += ex.InnerException.ToString();
-                    txt += ex.InnerException.InnerException.ToString();
-                    File.WriteAllText("gfxerror.txt", txt);
+                    case "NoSuitableGraphicsDeviceException":
+                        {
+                            var txt = "NoSuitableGraphicsDeviceException" + Environment.NewLine;
+                            txt += exception.InnerException.ToString();
+                            txt += exception.InnerException.InnerException?.ToString();
+                            File.WriteAllText("gfxerror.txt", txt);
 
-                    if (!string.IsNullOrEmpty(OpenGLLink))
-                    {
-                        Process.Start(OpenGLLink);
-                    }
+                            if (!string.IsNullOrEmpty(OpenGLLink))
+                            {
+                                Process.Start(OpenGLLink);
+                            }
 
-                    Environment.Exit(-1);
+                            Environment.Exit(-1);
+                            break;
+                        }
+
+                    case "NoAudioHardwareException":
+                        {
+                            if (!string.IsNullOrEmpty(OpenALLink))
+                            {
+                                Process.Start(OpenALLink);
+                            }
+
+                            Environment.Exit(-1);
+                            break;
+                        }
                 }
 
-                if (ex.InnerException != null && ex.InnerException.GetType().Name == "NoAudioHardwareException")
-                {
-                    if (!string.IsNullOrEmpty(OpenALLink))
-                    {
-                        Process.Start(OpenALLink);
-                    }
-
-                    Environment.Exit(-1);
-                }
-
-                var type = Type.GetType("Intersect.Client.MonoGame.IntersectGame", true);
+                var type = Type.GetType("Intersect.Client.Core.ClientContext", true);
                 Debug.Assert(type != null, "type != null");
-                var staticMethodInfo = type.GetMethod("CurrentDomain_UnhandledException");
-                staticMethodInfo.Invoke(
-                    null,
-                    new object[]
-                    {
-                        null, new UnhandledExceptionEventArgs(ex.InnerException != null ? ex.InnerException : ex, true)
-                    }
+
+                var staticMethodInfo = type.GetMethod(
+                    "DispatchUnhandledException", BindingFlags.Static | BindingFlags.NonPublic
                 );
+
+                Debug.Assert(staticMethodInfo != null, nameof(staticMethodInfo) + " != null");
+
+                staticMethodInfo.Invoke(null, new object[] { exception.InnerException ?? exception, true, true });
             }
         }
 
@@ -95,34 +101,36 @@ namespace Intersect.Client
 
         private static string ReadProcessOutput(string name)
         {
+            Debug.Assert(name != null, "name != null");
+            var processStartInfo = new ProcessStartInfo
+            {
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                FileName = name
+            };
+
             try
             {
-                Debug.Assert(name != null, "name != null");
-                var p = new Process
+
+                using (var p = new Process { StartInfo = processStartInfo })
                 {
-                    StartInfo =
-                    {
-                        UseShellExecute = false,
-                        RedirectStandardOutput = true,
-                        FileName = name
-                    }
-                };
+                    p.Start();
 
-                p.Start();
+                    // Do not wait for the child process to exit before
+                    // reading to the end of its redirected stream.
+                    // p.WaitForExit();
+                    // Read the output stream first and then wait.
+                    var output = p.StandardOutput.ReadToEnd();
+                    p.WaitForExit();
+                    output = output.Trim();
 
-                // Do not wait for the child process to exit before
-                // reading to the end of its redirected stream.
-                // p.WaitForExit();
-                // Read the output stream first and then wait.
-                var output = p.StandardOutput.ReadToEnd();
-                p.WaitForExit();
-                output = output.Trim();
-
-                return output;
+                    return output;
+                }
             }
-            catch
+            catch (Exception exception)
             {
-                return "";
+                Log.Warn(exception);
+                return string.Empty;
             }
         }
 
@@ -168,8 +176,8 @@ namespace Intersect.Client
 
                 case PlatformID.Unix:
                 default:
-                    ExportDependency("libopenal.so.1", "x64");
-                    ExportDependency("libSDL2-2.0.so.0", "x64");
+                    ExportDependency("libopenal.so.1", "");
+                    ExportDependency("libSDL2-2.0.so.0", "");
                     ExportDependency("openal32.dll", "");
                     ExportDependency("MonoGame.Framework.dll.config", "", "MonoGame.Framework.Client.dll.config");
 
@@ -203,7 +211,7 @@ namespace Intersect.Client
                     using (var fileStream = new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite))
                     {
                         var data = new byte[resourceStream.Length];
-                        resourceStream.Read(data, 0, (int) resourceStream.Length);
+                        resourceStream.Read(data, 0, (int)resourceStream.Length);
                         fileStream.Write(data, 0, data.Length);
                     }
                 }
@@ -214,9 +222,7 @@ namespace Intersect.Client
                 Debug.Assert(resourceStream != null, "resourceStream != null");
                 var resources = new ResourceSet(resourceStream);
 
-                path = Path.Combine(
-                    "resources", folder, filename.Split(new char[] {'.'})[0]?.Split(new char[] {'-'})[0]
-                );
+                path = Path.Combine("resources", folder, filename.Split('.')[0].Split('-')[0]);
 
                 path = path.ToLower();
 
@@ -234,14 +240,14 @@ namespace Intersect.Client
                         FileAccess.ReadWrite
                     ))
                     {
-                        var memoryStream = (UnmanagedMemoryStream) enumerator.Value;
+                        var memoryStream = (UnmanagedMemoryStream)enumerator.Value;
                         if (memoryStream == null)
                         {
                             continue;
                         }
 
                         var data = new byte[memoryStream.Length];
-                        memoryStream.Read(data, 0, (int) memoryStream.Length);
+                        memoryStream.Read(data, 0, (int)memoryStream.Length);
                         fs.Write(data, 0, data.Length);
                     }
                 }
@@ -267,6 +273,5 @@ namespace Intersect.Client
         }
 
     }
-#endif
 
 }

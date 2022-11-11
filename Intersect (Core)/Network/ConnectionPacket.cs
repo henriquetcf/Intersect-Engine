@@ -1,11 +1,9 @@
 ﻿using System;
 using System.Security.Cryptography;
-
-using Ceras;
-
+using Intersect.Network.Packets;
 using Intersect.Utilities;
 
-using JetBrains.Annotations;
+using MessagePack;
 
 #if INTERSECT_DIAGNOSTIC
 using Intersect.Logging;
@@ -13,15 +11,26 @@ using Intersect.Logging;
 
 namespace Intersect.Network
 {
-    public abstract class ConnectionPacket : CerasPacket
+    [MessagePackObject]
+    [Union(0, typeof(ApprovalPacket))]
+    [Union(1, typeof(HailPacket))]
+    public abstract partial class ConnectionPacket : IntersectPacket
     {
         protected const int SIZE_HANDSHAKE_SECRET = 32;
 
+        [IgnoreMember]
         protected RSACryptoServiceProvider mRsa;
+
+        [IgnoreMember]
         protected byte[] mHandshakeSecret;
 
+        [IgnoreMember]
         protected long mAdjusted;
+
+        [IgnoreMember]
         protected long mUTC;
+
+        [IgnoreMember]
         protected long mOffset;
 
         protected ConnectionPacket()
@@ -36,43 +45,43 @@ namespace Intersect.Network
 
             Adjusted = Timing.Global.Ticks;
             Offset = Timing.Global.TicksOffset;
-            UTC = Timing.Global.TicksUTC;
+            UTC = Timing.Global.TicksUtc;
         }
 
-        [Exclude]
+        [IgnoreMember]
         public byte[] HandshakeSecret
         {
             get => mHandshakeSecret;
             set => mHandshakeSecret = value;
         }
 
-        [Exclude]
+        [IgnoreMember]
         public long Adjusted
         {
             get => mAdjusted;
             set => mAdjusted = value;
         }
 
-        [Exclude]
+        [IgnoreMember]
         public long UTC
         {
             get => mUTC;
             set => mUTC = value;
         }
 
-        [Exclude]
+        [IgnoreMember]
         public long Offset
         {
             get => mOffset;
             set => mOffset = value;
         }
 
-        [Include, NotNull]
-        protected byte[] EncryptedData { get; set; }
+        [Key(0)]
+        public byte[] EncryptedData { get; set; }
 
         public abstract bool Encrypt();
 
-        public abstract bool Decrypt([NotNull] RSACryptoServiceProvider rsa);
+        public abstract bool Decrypt(RSACryptoServiceProvider rsa);
 
         protected static void DumpKey(RSAParameters parameters, bool isPublic)
         {

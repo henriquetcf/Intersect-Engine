@@ -6,13 +6,13 @@ namespace Intersect.Client.Framework.Gwen.Control
     /// <summary>
     ///     Numeric text box - accepts only float numbers.
     /// </summary>
-    public class TextBoxNumeric : TextBox
+    public partial class TextBoxNumeric : TextBox
     {
 
         /// <summary>
         ///     Current numeric value.
         /// </summary>
-        protected float mValue;
+        protected double mValue;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="TextBoxNumeric" /> class.
@@ -27,7 +27,7 @@ namespace Intersect.Client.Framework.Gwen.Control
         /// <summary>
         ///     Current numerical value.
         /// </summary>
-        public virtual float Value
+        public virtual double Value
         {
             get => mValue;
             set

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 using Intersect.Client.Core;
@@ -11,19 +11,13 @@ using Intersect.Client.Localization;
 using Intersect.Client.Networking;
 using Intersect.GameObjects;
 using Intersect.GameObjects.Crafting;
+using Intersect.Utilities;
 
 namespace Intersect.Client.Interface.Game.Crafting
 {
 
-    public class CraftingWindow
+    public partial class CraftingWindow
     {
-
-        private static int sItemXPadding = 4;
-
-        private static int sItemYPadding = 4;
-
-        public bool Crafting;
-
         private ImagePanel mBar;
 
         private ImagePanel mBarContainer;
@@ -36,7 +30,11 @@ namespace Intersect.Client.Interface.Game.Crafting
 
         private Button mCraft;
 
-        private ImagePanel mCraftedItemTemplate;
+        private Button mCraftAll;
+
+        private Guid mAutoCraftId = Guid.Empty;
+
+        private int mRemainingCrafts = 0;
 
         private Guid mCraftId;
 
@@ -49,18 +47,29 @@ namespace Intersect.Client.Interface.Game.Crafting
 
         private List<RecipeItem> mItems = new List<RecipeItem>();
 
-        private ImagePanel mItemTemplate;
-
         private Label mLblIngredients;
 
         private Label mLblProduct;
 
         private Label mLblRecipes;
 
+        private Label mLblCraftingChance;
+
+        private Label mLblDestroyMaterialsChance;
+
+        private Label mLblCraftingTime;
+
         //Objects
         private ListBox mRecipes;
 
         private List<Label> mValues = new List<Label>();
+
+        //Location
+        public int X => mCraftWindow.X;
+
+        public int Y => mCraftWindow.Y;
+
+        public bool IsCrafting => mRemainingCrafts > 0;
 
         public CraftingWindow(Canvas gameCanvas)
         {
@@ -79,6 +88,15 @@ namespace Intersect.Client.Interface.Game.Crafting
             mLblProduct = new Label(mCraftWindow, "ProductLabel");
             mLblProduct.Text = Strings.Crafting.product;
 
+            mLblCraftingChance = new Label(mCraftWindow, "ProductChanceLabel");
+            mLblCraftingChance.Text = Strings.Crafting.CraftChance.ToString(0);
+
+            mLblDestroyMaterialsChance = new Label(mCraftWindow, "DestroyMaterialsChanceLabel");
+            mLblDestroyMaterialsChance.Text = Strings.Crafting.DestroyMaterialsChance.ToString(0);
+
+            mLblCraftingTime = new Label(mCraftWindow, "CraftingTimeLabel");
+            mLblCraftingTime.Text = Strings.Crafting.CraftingTime.ToString(0);
+
             //Recepie list
             mRecipes = new ListBox(mCraftWindow, "RecipesList");
 
@@ -91,6 +109,11 @@ namespace Intersect.Client.Interface.Game.Crafting
             mCraft.SetText(Strings.Crafting.craft);
             mCraft.Clicked += craft_Clicked;
 
+            //Craft all button
+            mCraftAll = new Button(mCraftWindow, "CraftAllButton");
+            mCraftAll.SetText(Strings.Crafting.craftall.ToString(1));
+            mCraftAll.Clicked += craftAll_Clicked;
+
             mCraftWindow.LoadJsonUi(GameContentManager.UI.InGame, Graphics.Renderer.GetResolutionString());
 
             Interface.InputBlockingElements.Add(mCraftWindow);
@@ -101,11 +124,6 @@ namespace Intersect.Client.Interface.Game.Crafting
                 LoadCraftItems(mCraftId);
             };
         }
-
-        //Location
-        public int X => mCraftWindow.X;
-
-        public int Y => mCraftWindow.Y;
 
         private void LoadCraftItems(Guid id)
         {
@@ -186,6 +204,8 @@ namespace Intersect.Client.Interface.Game.Crafting
                 }
             }
 
+            var craftableQuantity = -1;
+
             for (var i = 0; i < craft.Ingredients.Count; i++)
             {
                 mItems.Add(new RecipeItem(this, craft.Ingredients[i]));
@@ -201,6 +221,14 @@ namespace Intersect.Client.Interface.Game.Crafting
                 }
 
                 lblTemp.Text = onHand + "/" + craft.Ingredients[i].Quantity;
+
+                var possibleToCraft = (int)Math.Floor(onHand / (double)craft.Ingredients[i].Quantity);
+
+                if (craftableQuantity == -1 || possibleToCraft < craftableQuantity)
+                {
+                    craftableQuantity = possibleToCraft;
+                }
+
                 mValues.Add(lblTemp);
 
                 mItems[i].Container.LoadJsonUi(GameContentManager.UI.InGame, Graphics.Renderer.GetResolutionString());
@@ -224,8 +252,13 @@ namespace Intersect.Client.Interface.Game.Crafting
                     );
             }
 
+            //Show crafting time and chances
+            mLblCraftingTime.Text = Strings.Crafting.CraftingTime.ToString(craft.Time / 1000.0);
+            mLblCraftingChance.Text = Strings.Crafting.CraftChance.ToString(craft.FailureChance);
+            mLblDestroyMaterialsChance.Text = Strings.Crafting.DestroyMaterialsChance.ToString(craft.ItemLossChance);
+
             //If crafting & we no longer have the items for the craft then stop!
-            if (Crafting)
+            if (IsCrafting)
             {
                 var cancraft = true;
                 foreach (var c in CraftBase.Get(mCraftId).Ingredients)
@@ -253,19 +286,27 @@ namespace Intersect.Client.Interface.Game.Crafting
 
                 if (!cancraft)
                 {
-                    Crafting = false;
+                    mRemainingCrafts = 0;
                     mCraftWindow.IsClosable = true;
                     mBar.Width = 0;
-                    ChatboxMsg.AddMessage(new ChatboxMsg(Strings.Crafting.incorrectresources, Color.Red));
+                    ChatboxMsg.AddMessage(new ChatboxMsg(Strings.Crafting.incorrectresources, CustomColors.Alerts.Error, Enums.ChatMessageType.Crafting));
 
                     return;
                 }
+            }
+
+            mCraftAll.IsHidden = craftableQuantity < 2;
+            if (!mCraftAll.IsHidden)
+            {
+                mCraftAll.SetText(Strings.Crafting.craftall.ToString(craftableQuantity));
+                mCraftAll.UserData = craftableQuantity;
+                mCraftAll.IsDisabled = IsCrafting;
             }
         }
 
         public void Close()
         {
-            if (Crafting == false)
+            if (IsCrafting == false)
             {
                 mCraftWindow.Close();
             }
@@ -278,7 +319,7 @@ namespace Intersect.Client.Interface.Game.Crafting
 
         public void Hide()
         {
-            if (Crafting == false)
+            if (IsCrafting == false)
             {
                 mCraftWindow.IsHidden = true;
             }
@@ -287,14 +328,13 @@ namespace Intersect.Client.Interface.Game.Crafting
         //Load new recepie
         void tmpNode_DoubleClicked(Base sender, ClickedEventArgs arguments)
         {
-            if (Crafting == false)
+            if (IsCrafting == false)
             {
                 LoadCraftItems((Guid) ((ListBoxRow) sender).UserData);
             }
         }
 
-        //Craft the item
-        void craft_Clicked(Base sender, ClickedEventArgs arguments)
+        bool CanCraft()
         {
             //This shouldn't be client side :(
             //Quickly Look through the inventory and create a catalog of what items we have, and how many
@@ -339,17 +379,54 @@ namespace Intersect.Client.Interface.Game.Crafting
                 }
             }
 
-            if (canCraft)
+            return canCraft;
+        }
+
+        void DoCraft(int count)
+        {
+            if (IsCrafting)
             {
-                Crafting = true;
-                mBarTimer = Globals.System.GetTimeMs();
-                PacketSender.SendCraftItem(mCraftId);
-                mCraftWindow.IsClosable = false;
+                PacketSender.SendCraftItem(default, default);
+                mRemainingCrafts = 0;
+                mCraftWindow.IsClosable = true;
+                mBar.Width = 0;
+                mAutoCraftId = default;
+
+                LoadCraftItems(mCraftId);
 
                 return;
             }
 
-            ChatboxMsg.AddMessage(new ChatboxMsg(Strings.Crafting.incorrectresources, Color.Red));
+            if (CanCraft())
+            {
+                mRemainingCrafts = count;
+                mBarTimer = Timing.Global.Milliseconds;
+                PacketSender.SendCraftItem(mCraftId, count);
+                mCraftWindow.IsClosable = false;
+                mCraftAll.IsDisabled = true;
+
+                return;
+            }
+
+            ChatboxMsg.AddMessage(new ChatboxMsg(Strings.Crafting.incorrectresources, CustomColors.Alerts.Error, Enums.ChatMessageType.Crafting));
+        }
+
+        //Craft the item
+        void craft_Clicked(Base sender, ClickedEventArgs arguments) => DoCraft(1);
+
+        //Craft all the items
+        void craftAll_Clicked(Base sender, ClickedEventArgs arguments)
+        {
+            if (CanCraft())
+            {
+                DoCraft((int)mCraftAll.UserData);
+                mAutoCraftId = mCraftId;
+                mCraftAll.Disable();
+            }
+            else
+            {
+                ChatboxMsg.AddMessage(new ChatboxMsg(Strings.Crafting.incorrectresources, CustomColors.Alerts.Error, Enums.ChatMessageType.Crafting));
+            }
         }
 
         //Update the crafting bar
@@ -365,7 +442,7 @@ namespace Intersect.Client.Interface.Game.Crafting
                         continue;
                     }
 
-                    var tmpRow = mRecipes?.AddRow(i + 1 + ") " + ItemBase.GetName(activeCraft.ItemId));
+                    var tmpRow = mRecipes?.AddRow(i + 1 + ") " + activeCraft.Name);
                     if (tmpRow == null)
                     {
                         continue;
@@ -374,8 +451,6 @@ namespace Intersect.Client.Interface.Game.Crafting
                     tmpRow.UserData = Globals.ActiveCraftingTable.Crafts[i];
                     tmpRow.DoubleClicked += tmpNode_DoubleClicked;
                     tmpRow.Clicked += tmpNode_DoubleClicked;
-                    tmpRow.SetTextColor(Color.White);
-                    tmpRow.RenderColor = new Color(50, 255, 255, 255);
                 }
 
                 //Load the craft data
@@ -387,10 +462,14 @@ namespace Intersect.Client.Interface.Game.Crafting
                 mInitialized = true;
             }
 
-            if (!Crafting)
+            if (IsCrafting)
             {
+                mCraft.SetText(Strings.Crafting.craftstop);
+            }
+            else
+            {
+                mCraft.SetText(Strings.Crafting.craft);
                 mBar.Width = 0;
-
                 return;
             }
 
@@ -400,18 +479,24 @@ namespace Intersect.Client.Interface.Game.Crafting
                 return;
             }
 
-            var delta = Globals.System.GetTimeMs() - mBarTimer;
+            var delta = Timing.Global.Milliseconds - mBarTimer;
             if (delta > craft.Time)
             {
                 delta = craft.Time;
-                Crafting = false;
-                if (mCraftWindow != null)
+                mRemainingCrafts--;
+                if (mRemainingCrafts < 1)
                 {
-                    mCraftWindow.IsClosable = true;
-                }
+                    if (mCraftWindow != null)
+                    {
+                        mCraftWindow.IsClosable = true;
+                    }
 
-                LoadCraftItems(mCraftId);
-                mBar.Width = 0;
+                    mBar.Width = 0;
+                }
+                else
+                {
+                    mBarTimer = Timing.Global.Milliseconds;
+                }
             }
 
             var ratio = craft.Time == 0 ? 0 : Convert.ToDecimal(delta) / Convert.ToDecimal(craft.Time);

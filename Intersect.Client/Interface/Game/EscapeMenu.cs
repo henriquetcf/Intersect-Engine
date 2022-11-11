@@ -7,32 +7,31 @@ using Intersect.Client.Framework.Gwen.Control.EventArguments;
 using Intersect.Client.General;
 using Intersect.Client.Interface.Shared;
 using Intersect.Client.Localization;
-
-using JetBrains.Annotations;
+using Intersect.Utilities;
 
 namespace Intersect.Client.Interface.Game
 {
 
-    public class EscapeMenu : ImagePanel
+    public partial class EscapeMenu : ImagePanel
     {
 
-        [NotNull] private readonly Button mClose;
+        private readonly Button mClose;
 
-        [NotNull] private readonly ImagePanel mContainer;
+        private readonly ImagePanel mContainer;
 
-        [NotNull] private readonly Button mExitToDesktop;
+        private readonly Button mExitToDesktop;
 
-        [NotNull] private readonly Button mGoToCharacterSelect;
+        private readonly Button mGoToCharacterSelect;
 
-        [NotNull] private readonly Button mLogout;
+        private readonly Button mLogout;
 
-        [NotNull] private readonly Button mOptions;
+        private readonly Button mSettings;
 
-        [NotNull] private readonly OptionsWindow mOptionsWindow;
+        private readonly SettingsWindow mSettingsWindow;
 
-        [NotNull] private readonly Label mTitle;
+        private readonly Label mTitle;
 
-        public EscapeMenu([NotNull] Canvas gameCanvas) : base(gameCanvas, "EscapeMenu")
+        public EscapeMenu(Canvas gameCanvas) : base(gameCanvas, "EscapeMenu")
         {
             Interface.InputBlockingElements?.Add(this);
 
@@ -46,14 +45,14 @@ namespace Intersect.Client.Interface.Game
                 Text = Strings.EscapeMenu.Title,
             };
 
-            mOptionsWindow = new OptionsWindow(gameCanvas, null, null);
+            mSettingsWindow = new SettingsWindow(gameCanvas, null, this);
 
-            mOptions = new Button(mContainer, "OptionsButton")
+            mSettings = new Button(mContainer, "SettingsButton")
             {
-                Text = Strings.EscapeMenu.Options
+                Text = Strings.EscapeMenu.Settings
             };
 
-            mOptions.Clicked += Options_Clicked;
+            mSettings.Clicked += Settings_Clicked;
 
             mGoToCharacterSelect = new Button(mContainer, "CharacterSelectButton")
             {
@@ -116,24 +115,26 @@ namespace Intersect.Client.Interface.Game
             {
                 BringToFront();
             }
+
+            mGoToCharacterSelect.IsDisabled = Globals.Me?.CombatTimer > Timing.Global.Milliseconds;
         }
 
-        private void Options_Clicked(Base sender, ClickedEventArgs arguments)
+        private void Settings_Clicked(Base sender, ClickedEventArgs arguments)
         {
-            mOptionsWindow.Show();
+            mSettingsWindow.Show(true);
             Interface.GameUi?.EscapeMenu?.Hide();
         }
 
-        public void OpenSettings()
+        public void OpenSettingsWindow()
         {
-            mOptionsWindow.Show();
+            mSettingsWindow.Show();
             Interface.GameUi?.EscapeMenu?.Hide();
         }
 
         /// <inheritdoc />
         public override void ToggleHidden()
         {
-            if (mOptionsWindow.IsVisible())
+            if (mSettingsWindow.IsVisible())
             {
                 return;
             }
@@ -174,7 +175,7 @@ namespace Intersect.Client.Interface.Game
         private void GoToCharacterSelect_Clicked(Base sender, ClickedEventArgs arguments)
         {
             ToggleHidden();
-            if (Globals.Me.CombatTimer > Globals.System.GetTimeMs())
+            if (Globals.Me.CombatTimer > Timing.Global.Milliseconds)
             {
                 //Show Logout in Combat Warning
                 var box = new InputBox(
@@ -191,7 +192,7 @@ namespace Intersect.Client.Interface.Game
         private void Logout_Clicked(Base sender, ClickedEventArgs arguments)
         {
             ToggleHidden();
-            if (Globals.Me.CombatTimer > Globals.System.GetTimeMs())
+            if (Globals.Me.CombatTimer > Timing.Global.Milliseconds)
             {
                 //Show Logout in Combat Warning
                 var box = new InputBox(
@@ -208,7 +209,7 @@ namespace Intersect.Client.Interface.Game
         private void ExitToDesktop_Clicked(Base sender, ClickedEventArgs arguments)
         {
             ToggleHidden();
-            if (Globals.Me.CombatTimer > Globals.System.GetTimeMs())
+            if (Globals.Me.CombatTimer > Timing.Global.Milliseconds)
             {
                 //Show Logout in Combat Warning
                 var box = new InputBox(

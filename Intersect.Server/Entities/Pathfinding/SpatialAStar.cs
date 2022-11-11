@@ -11,7 +11,7 @@ namespace Intersect.Server.Entities.Pathfinding
 
     }
 
-    public class PathNode : IComparer<PathNode>, IIndexedObject
+    public partial class PathNode : IComparer<PathNode>, IIndexedObject
     {
 
         public static readonly PathNode Comparer = new PathNode(0, 0, false);
@@ -51,12 +51,20 @@ namespace Intersect.Server.Entities.Pathfinding
 
         public int Index { get; set; }
 
+        public void Reset()
+        {
+            G = 0.0;
+            H = 0.0;
+            F = 0.0;
+            IsWall = false;
+        }
+
     }
 
     /// <summary>
     ///     Uses about 50 MB for a 1024x1024 grid.
     /// </summary>
-    public class SpatialAStar
+    public partial class SpatialAStar
     {
 
         private static readonly double Sqrt2 = Math.Sqrt(2);
@@ -161,6 +169,7 @@ namespace Intersect.Server.Entities.Pathfinding
             mRuntimeGrid.Add(startNode);
 
             var nodes = 0;
+            PathNode closestNode = null;
 
             while (!mOpenSet.IsEmpty)
             {
@@ -245,8 +254,20 @@ namespace Intersect.Server.Entities.Pathfinding
                         {
                             mOrderedOpenSet.Update(y);
                         }
+
+                        if (closestNode == null || closestNode.H > y.H)
+                        {
+                            closestNode = y;
+                        }
                     }
                 }
+            }
+
+            if (closestNode != null && closestNode.H < startNode.H)
+            {
+                var result = ReconstructPath(mCameFrom, mCameFrom[closestNode.X, closestNode.Y]);
+                result.AddLast(closestNode);
+                return result;
             }
 
             return null;
@@ -327,7 +348,7 @@ namespace Intersect.Server.Entities.Pathfinding
             inNeighbors[7] = null;
         }
 
-        private class OpenCloseMap
+        private partial class OpenCloseMap
         {
 
             private PathNode[,] mMap;

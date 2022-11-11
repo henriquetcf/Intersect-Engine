@@ -20,13 +20,17 @@ using Newtonsoft.Json.Linq;
 namespace Intersect.Server.Database.GameData.Migrations
 {
 
-    public static class Beta6Migration
+    public static partial class Beta6Migration
     {
 
-        private static readonly Ceras mCeras = new Ceras(false);
+        private static Intersect.Network.Ceras mCeras;
 
         public static void Run(GameContext context)
         {
+            var nameTypeDict = new Dictionary<string, Type>();
+            nameTypeDict.Add("Intersect.GameObjects.Maps.TileArray[]", typeof(LegacyTileArray[]));
+            mCeras = new Intersect.Network.Ceras(nameTypeDict);
+
             RemoveByteBufferUsageFromMaps(context);
 
             //Fix SetSwitch/SetVariable Event Commands
@@ -668,10 +672,10 @@ namespace Intersect.Server.Database.GameData.Migrations
         {
             var data = Decompress(tileData);
             var readPos = 0;
-            var Layers = new TileArray[Options.LayerCount];
-            for (var i = 0; i < Options.LayerCount; i++)
+            var Layers = new LegacyTileArray[5];
+            for (var i = 0; i < 5; i++)
             {
-                Layers[i].Tiles = new Tile[Options.MapWidth, Options.MapHeight];
+                Layers[i].Tiles = new LegacyTile[Options.MapWidth, Options.MapHeight];
                 for (var x = 0; x < Options.MapWidth; x++)
                 {
                     for (var y = 0; y < Options.MapHeight; y++)
@@ -719,6 +723,28 @@ namespace Intersect.Server.Database.GameData.Migrations
             }
 
             return null;
+        }
+
+        private partial struct LegacyTileArray
+        {
+
+            public LegacyTile[,] Tiles;
+
+        }
+
+        private partial struct LegacyTile
+        {
+
+            public Guid TilesetId;
+
+            public int X;
+
+            public int Y;
+
+            public byte Autotile;
+
+            [JsonIgnore] public object TilesetTex;
+
         }
 
     }

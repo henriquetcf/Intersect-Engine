@@ -1,17 +1,27 @@
-﻿using System;
+using MessagePack;
+using System;
 
 namespace Intersect.Network.Packets.Client
 {
-
-    public class CraftItemPacket : CerasPacket
+    [MessagePackObject]
+    public partial class CraftItemPacket : IntersectPacket
     {
-
-        public CraftItemPacket(Guid craftId)
+        //Parameterless Constructor for MessagePack
+        public CraftItemPacket()
         {
-            CraftId = craftId;
         }
 
+        public CraftItemPacket(Guid craftId, int count)
+        {
+            CraftId = craftId;
+            Count = count;
+        }
+
+        [Key(0)]
         public Guid CraftId { get; set; }
+
+        [Key(1)]
+        public int Count { get; set; }
 
     }
 

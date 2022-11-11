@@ -10,7 +10,7 @@ namespace Intersect.Extensions
 {
 
     [TestFixture]
-    public class RandomExtensionsTests
+    public partial class RandomExtensionsTests
     {
 
         [Test]
@@ -54,17 +54,39 @@ namespace Intersect.Extensions
         }
 
         [Test]
-        public void NextFloatMaximumTest()
+        public void NextFloatMaximumThrowsExceptionWhenNegativeTest()
         {
             var random = new MockRandom();
             Assert.ThrowsException<ArgumentOutOfRangeException>(() => random.NextFloat(-1));
         }
 
         [Test]
-        public void NextFloatMinimumMaximumTest()
+        public void NextFloatMaximumTest()
+        {
+            var random = new MockRandom
+            {
+                MockNextDouble = float.NegativeInfinity
+            };
+            var nextFloat = random.NextFloat(1);
+            Assert.IsTrue(float.IsNegativeInfinity(nextFloat), $@"Expected negative infinity, got {nextFloat}.");
+        }
+
+        [Test]
+        public void NextFloatMinimumThrowsExceptionWhenMaximumLessThanMinimumTest()
         {
             var random = new MockRandom();
             Assert.ThrowsException<ArgumentOutOfRangeException>(() => random.NextFloat(1, 0));
+        }
+
+        [Test]
+        public void NextFloatMinimumMaximumTest()
+        {
+            var random = new MockRandom
+            {
+                MockNextDouble = float.NegativeInfinity
+            };
+            var nextFloat = random.NextFloat(0, 1);
+            Assert.IsTrue(float.IsNegativeInfinity(nextFloat), $@"Expected negative infinity, got {nextFloat}.");
         }
 
         [Test]
@@ -169,7 +191,7 @@ namespace Intersect.Extensions
 
     }
 
-    internal class MockRandom : Random
+    internal partial class MockRandom : Random
     {
 
         internal byte[] MockNextBytes { private get; set; }

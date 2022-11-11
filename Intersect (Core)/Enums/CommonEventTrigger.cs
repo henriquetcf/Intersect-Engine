@@ -1,4 +1,4 @@
-﻿namespace Intersect.Enums
+namespace Intersect.Enums
 {
 
     public enum CommonEventTrigger
@@ -20,7 +20,27 @@
 
         PVPDeath,
 
-        PlayerInteract
+        PlayerInteract,
+
+        EquipChange,
+
+        PlayerVariableChange,
+
+        ServerVariableChange,
+
+        GuildMemberJoined,
+
+        GuildMemberLeft,
+
+        GuildMemberKicked,
+
+        GuildVariableChange,
+
+        InventoryChanged,
+
+        MapChanged,
+
+        UserVariableChange,
 
     }
 

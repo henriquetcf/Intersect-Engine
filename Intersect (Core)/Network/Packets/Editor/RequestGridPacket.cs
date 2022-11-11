@@ -1,16 +1,22 @@
-﻿using System;
+﻿using MessagePack;
+using System;
 
 namespace Intersect.Network.Packets.Editor
 {
-
-    public class RequestGridPacket : EditorPacket
+    [MessagePackObject]
+    public partial class RequestGridPacket : EditorPacket
     {
+        //Parameterless Constructor for MessagePack
+        public RequestGridPacket()
+        {
+        }
 
         public RequestGridPacket(Guid mapId)
         {
             MapId = mapId;
         }
 
+        [Key(0)]
         public Guid MapId { get; set; }
 
     }

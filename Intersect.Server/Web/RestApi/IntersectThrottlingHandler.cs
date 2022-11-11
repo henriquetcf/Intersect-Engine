@@ -4,26 +4,24 @@ using System.Net.Http;
 
 using Intersect.Server.Web.Utilities;
 
-using JetBrains.Annotations;
-
 using WebApiThrottle;
 
 namespace Intersect.Server.Web.RestApi
 {
 
     // TODO: Probably a good idea to remove this since it was replaced with middleware
-    public class IntersectThrottlingHandler : ThrottlingHandler
+    public partial class IntersectThrottlingHandler : ThrottlingHandler
     {
 
-        [NotNull] public const string DefaultAuthorizedFallbackClientKey = "authorized";
+        public const string DefaultAuthorizedFallbackClientKey = "authorized";
 
-        [NotNull] public const string DefaultFallbackClientKey = "test";
+        public const string DefaultFallbackClientKey = "test";
 
         public string Header { get; set; }
 
         public string FallbackClientKey { get; set; }
 
-        protected override RequestIdentity SetIdentity([NotNull] HttpRequestMessage request)
+        protected override RequestIdentity SetIdentity(HttpRequestMessage request)
         {
             if (request.Headers == null)
             {

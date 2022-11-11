@@ -2,12 +2,8 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
 
-using Ceras;
-
-using Intersect.Logging;
 using Intersect.Memory;
-
-using JetBrains.Annotations;
+using MessagePack;
 
 #if INTERSECT_DIAGNOSTIC
 using Intersect.Logging;
@@ -15,15 +11,21 @@ using Intersect.Logging;
 
 namespace Intersect.Network.Packets
 {
-
-    public class ApprovalPacket : ConnectionPacket
+    [MessagePackObject]
+    public partial class ApprovalPacket : ConnectionPacket
     {
-
+        [IgnoreMember]
         private const int SIZE_AES_KEY = 32;
+
+        [IgnoreMember]
 
         private const int SIZE_GUID = 16;
 
+        [IgnoreMember]
+
         private byte[] mAesKey;
+
+        [IgnoreMember]
 
         private Guid mGuid;
 
@@ -39,14 +41,14 @@ namespace Intersect.Network.Packets
             Guid = guid;
         }
 
-        [Exclude]
+        [IgnoreMember]
         public Guid Guid
         {
             get => mGuid;
             set => mGuid = value;
         }
 
-        [Exclude]
+        [IgnoreMember]
         public byte[] AesKey
         {
             get => mAesKey;

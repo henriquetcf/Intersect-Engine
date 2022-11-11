@@ -5,7 +5,7 @@ using Intersect.Collections;
 namespace Intersect.GameObjects.Maps.MapList
 {
 
-    public class MapListMap : MapListItem, IComparable<MapListMap>
+    public partial class MapListMap : MapListItem, IComparable<MapListMap>
     {
 
         public Guid MapId;
@@ -20,7 +20,7 @@ namespace Intersect.GameObjects.Maps.MapList
 
         public int CompareTo(MapListMap obj)
         {
-            return TimeCreated.CompareTo(obj.TimeCreated);
+            return Name.CompareTo(obj.Name);
         }
 
         public void PostLoad(DatabaseObjectLookup gameMaps, bool isServer = true)

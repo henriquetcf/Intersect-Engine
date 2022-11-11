@@ -215,6 +215,20 @@
         //Player Label
         PlayerLabel,
 
+        // Player Color
+        ChangePlayerColor,
+
+        ChangeName,
+
+        //Guilds
+        CreateGuild,
+        DisbandGuild,
+        OpenGuildBank,
+        SetGuildBankSlots,
+        //End Guilds
+
+        //Reset Stats
+        ResetStatPointAllocations,
     }
 
 }

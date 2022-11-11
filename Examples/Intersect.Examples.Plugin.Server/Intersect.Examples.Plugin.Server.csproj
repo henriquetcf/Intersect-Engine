@@ -1,0 +1,35 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net462</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Description>Example Server Plugin - Part of the Intersect 2D Game Creation Suite</Description>
+    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+    <RootNamespace>Intersect.Examples.Plugin.Server</RootNamespace>
+    <AssemblyName>Intersect.Examples.Plugin.Server</AssemblyName>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <FileAlignment>512</FileAlignment>
+    <IntersectPluginType>server</IntersectPluginType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>Intersect.Examples.Plugin.Server.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Microsoft.CSharp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Intersect.Server.Framework\Intersect.Server.Framework.csproj" />
+    <ProjectReference Include="..\Intersect.Examples.Plugin\Intersect.Examples.Plugin.csproj" />
+  </ItemGroup>
+
+  <!-- This has to go here to pick up IntersectPluginType -->
+  <Import Project="..\Plugin.build.props" />
+
+</Project>

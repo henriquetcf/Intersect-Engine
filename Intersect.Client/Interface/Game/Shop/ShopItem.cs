@@ -8,21 +8,23 @@ using Intersect.Client.Framework.Gwen.Control.EventArguments;
 using Intersect.Client.Framework.Gwen.Input;
 using Intersect.Client.Framework.Input;
 using Intersect.Client.General;
+using Intersect.Client.Interface.Game.DescriptionWindows;
 using Intersect.Client.Localization;
 using Intersect.Client.Networking;
+using Intersect.Configuration;
 using Intersect.GameObjects;
 
 namespace Intersect.Client.Interface.Game.Shop
 {
 
-    public class ShopItem
+    public partial class ShopItem
     {
 
         public ImagePanel Container;
 
         private int mCurrentItem = -2;
 
-        private ItemDescWindow mDescWindow;
+        private ItemDescriptionWindow mDescWindow;
 
         private bool mIsEquipped;
 
@@ -56,26 +58,23 @@ namespace Intersect.Client.Interface.Game.Shop
             Pnl.HoverEnter += pnl_HoverEnter;
             Pnl.HoverLeave += pnl_HoverLeave;
             Pnl.RightClicked += Pnl_RightClicked;
-            Pnl.DoubleClicked += Pnl_RightClicked; //Allow buying via double click OR right click
+            Pnl.DoubleClicked += Pnl_DoubleClicked;
+        }
+
+        private void Pnl_DoubleClicked(Base sender, ClickedEventArgs arguments)
+        {
+            Globals.Me.TryBuyItem(mMySlot);
         }
 
         private void Pnl_RightClicked(Base sender, ClickedEventArgs arguments)
         {
-            //Confirm the purchase
-            var item = ItemBase.Get(Globals.GameShop.SellingItems[mMySlot].ItemId);
-            if (item != null)
+            if (ClientConfiguration.Instance.EnableContextMenus)
             {
-                if (item.IsStackable)
-                {
-                    var iBox = new InputBox(
-                        Strings.Shop.buyitem, Strings.Shop.buyitemprompt.ToString(item.Name), true,
-                        InputBox.InputType.NumericInput, BuyItemInputBoxOkay, null, mMySlot
-                    );
-                }
-                else
-                {
-                    PacketSender.SendBuyItem(mMySlot, 1);
-                }
+                mShopWindow.OpenContextMenu(mMySlot);
+            }
+            else
+            {
+                Pnl_DoubleClicked(sender, arguments);
             }
         }
 
@@ -84,22 +83,16 @@ namespace Intersect.Client.Interface.Game.Shop
             var item = ItemBase.Get(Globals.GameShop.SellingItems[mMySlot].ItemId);
             if (item != null)
             {
-                var itemTex = Globals.ContentManager.GetTexture(GameContentManager.TextureType.Item, item.Icon);
+                var itemTex = Globals.ContentManager.GetTexture(Framework.Content.TextureType.Item, item.Icon);
                 if (itemTex != null)
                 {
                     Pnl.Texture = itemTex;
+                    Pnl.RenderColor = item.Color;
                 }
             }
         }
 
-        private void BuyItemInputBoxOkay(object sender, EventArgs e)
-        {
-            var value = (int) ((InputBox) sender).Value;
-            if (value > 0)
-            {
-                PacketSender.SendBuyItem((int) ((InputBox) sender).UserData, value);
-            }
-        }
+        
 
         void pnl_HoverLeave(Base sender, EventArgs arguments)
         {
@@ -120,7 +113,7 @@ namespace Intersect.Client.Interface.Game.Shop
                 return;
             }
 
-            if (Globals.InputManager.MouseButtonDown(GameInput.MouseButtons.Left))
+            if (Globals.InputManager.MouseButtonDown(MouseButtons.Left))
             {
                 return;
             }
@@ -134,7 +127,7 @@ namespace Intersect.Client.Interface.Game.Shop
             var item = ItemBase.Get(Globals.GameShop.SellingItems[mMySlot].CostItemId);
             if (item != null && Globals.GameShop.SellingItems[mMySlot].Item != null)
             {
-                mDescWindow = new ItemDescWindow(
+                mDescWindow = new ItemDescriptionWindow(
                     Globals.GameShop.SellingItems[mMySlot].Item, 1, mShopWindow.X, mShopWindow.Y, item.StatsGiven, "",
                     Strings.Shop.costs.ToString(Globals.GameShop.SellingItems[mMySlot].CostItemQuantity, item.Name)
                 );

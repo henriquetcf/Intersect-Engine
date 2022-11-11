@@ -1,17 +1,17 @@
-﻿namespace Intersect.Client.Framework.Gwen.Control
+namespace Intersect.Client.Framework.Gwen.Control
 {
 
     /// <summary>
     ///     Radio button.
     /// </summary>
-    public class RadioButton : CheckBox
+    public partial class RadioButton : CheckBox
     {
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="RadioButton" /> class.
         /// </summary>
         /// <param name="parent">Parent control.</param>
-        public RadioButton(Base parent) : base(parent)
+        public RadioButton(Base parent, string name = default, bool disableText = true) : base(parent, name, disableText)
         {
             SetSize(15, 15);
             MouseInputEnabled = true;
@@ -30,7 +30,7 @@
         /// <param name="skin">Skin to use.</param>
         protected override void Render(Skin.Base skin)
         {
-            skin.DrawRadioButton(this, IsChecked, IsDepressed);
+            skin.DrawRadioButton(this, IsChecked, IsHovered, IsDepressed);
         }
 
     }

@@ -5,7 +5,7 @@ using Intersect.Server.Localization;
 namespace Intersect.Server.Core.Commands
 {
 
-    internal sealed class UnbanCommand : TargetUserCommand
+    internal sealed partial class UnbanCommand : TargetUserCommand
     {
 
         public UnbanCommand() : base(Strings.Commands.Unban, Strings.Commands.Arguments.TargetUnban)
@@ -22,7 +22,7 @@ namespace Intersect.Server.Core.Commands
             }
 
             Ban.Remove(target);
-            Console.WriteLine($@"    {Strings.Account.unbanned.ToString(target.Name)}");
+            Console.WriteLine($@"    {Strings.Account.UnbanSuccess.ToString(target.Name)}");
         }
 
     }

@@ -1,14 +1,22 @@
-﻿namespace Intersect.Network.Packets.Server
-{
+﻿using MessagePack;
 
-    public class PingPacket : AbstractTimedPacket
+namespace Intersect.Network.Packets.Server
+{
+    [MessagePackObject]
+    public partial class PingPacket : AbstractTimedPacket
     {
+        //Parameterless Constructor for MessagePack
+        public PingPacket()
+        {
+
+        }
 
         public PingPacket(bool requestingReply)
         {
             RequestingReply = requestingReply;
         }
 
+        [Key(3)]
         public bool RequestingReply { get; set; }
 
     }

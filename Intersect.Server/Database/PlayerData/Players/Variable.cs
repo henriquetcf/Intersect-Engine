@@ -1,26 +1,16 @@
-﻿using System;
-using System.ComponentModel.DataAnnotations.Schema;
-
+﻿using Intersect.GameObjects;
 using Intersect.GameObjects.Switches_and_Variables;
-using Intersect.Server.Entities;
-
-using JetBrains.Annotations;
-
 using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Intersect.Server.Database.PlayerData.Players
 {
-
-    public class Variable : IPlayerOwned
+    public partial class Variable
     {
-
-        public Variable() : this(Guid.Empty) { }
-
-        public Variable(Guid id)
-        {
-            VariableId = id;
-        }
-
         [DatabaseGenerated(DatabaseGeneratedOption.Identity), JsonIgnore]
         public Guid Id { get; protected set; }
 
@@ -28,7 +18,6 @@ namespace Intersect.Server.Database.PlayerData.Players
 
         [NotMapped]
         [JsonIgnore]
-        [NotNull]
         public VariableValue Value { get; set; } = new VariableValue();
 
         [NotMapped]
@@ -48,13 +37,5 @@ namespace Intersect.Server.Database.PlayerData.Players
                 }
             }
         }
-
-        [JsonIgnore]
-        public Guid PlayerId { get; protected set; }
-
-        [JsonIgnore]
-        public virtual Player Player { get; protected set; }
-
     }
-
 }

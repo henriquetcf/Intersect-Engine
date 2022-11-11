@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 using Intersect.Client.Framework.File_Management;
@@ -13,7 +13,7 @@ namespace Intersect.Client.Framework.Gwen.Control
     /// <summary>
     ///     Multiline label with text chunks having different color/font.
     /// </summary>
-    public class RichLabel : Base
+    public partial class RichLabel : Base
     {
 
         private readonly string[] mNewline;
@@ -65,6 +65,22 @@ namespace Intersect.Client.Framework.Gwen.Control
             obj.Add("Font", mFontInfo);
 
             return base.FixJson(obj);
+        }
+
+        /// <summary>
+        ///     Adds text to the control via the properties of a <see cref="Label"/>
+        /// </summary>
+        /// <param name="text">Text to add</param>
+        /// <param name="template">Label to use as a template</param>
+        public void AddText(string text, Label template)
+        {
+            if (template == null)
+            {
+                throw new ArgumentNullException(nameof(template));
+            }
+            AddText(text, template.TextColor,
+                template.CurAlignments.Count > 0 ? template.CurAlignments[0] : Alignments.Left,
+                template.Font);
         }
 
         /// <summary>
@@ -313,7 +329,7 @@ namespace Intersect.Client.Framework.Gwen.Control
             }
         }
 
-        protected struct TextBlock
+        protected partial struct TextBlock
         {
 
             public BlockType Type;

@@ -1,7 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -19,52 +18,25 @@ using Newtonsoft.Json;
 
 namespace Intersect.Updater
 {
-    public class Updater
+    public partial class Updater
     {
-
-        private Thread mUpdateThread;
+        private readonly Thread mUpdateThread;
         private Update mUpdate;
         private Update mCachedVersion;
         private Update mCurrentVersion;
-        private string mCurrentVersionPath;
+        private readonly string mCurrentVersionPath;
         private Thread[] mDownloadThreads;
         private readonly int mDownloadThreadCount = 1;
-        private ConcurrentStack<UpdateFile> mDownloadQueue = new ConcurrentStack<UpdateFile>();
-        private ConcurrentDictionary<UpdateFile, long> mFailedDownloads = new ConcurrentDictionary<UpdateFile, long>();
-        private ConcurrentBag<UpdateFile> mCompletedDownloads = new ConcurrentBag<UpdateFile>();
-        private ConcurrentDictionary<UpdateFile, long> mActiveDownloads = new ConcurrentDictionary<UpdateFile, long>();
+        private readonly ConcurrentStack<UpdateFile> mDownloadQueue = new ConcurrentStack<UpdateFile>();
+        private readonly ConcurrentDictionary<UpdateFile, long> mFailedDownloads = new ConcurrentDictionary<UpdateFile, long>();
+        private readonly ConcurrentBag<UpdateFile> mCompletedDownloads = new ConcurrentBag<UpdateFile>();
+        private readonly ConcurrentDictionary<UpdateFile, long> mActiveDownloads = new ConcurrentDictionary<UpdateFile, long>();
         private long mDownloadedBytes;
         private bool mFailed;
         private bool mStopping;
         private bool mUpdaterContentLoaded;
-        private bool mIsClient;
         private string mConfigUrl;
         private string mBaseUrl;
-
-        public float Progress => ((float)BytesDownloaded / (float)SizeTotal) * 100f;
-
-        public int FilesRemaining => mDownloadQueue.Count +
-                                     mActiveDownloads.Count;
-
-        public long SizeRemaining => SizeTotal -
-                                     BytesDownloaded;
-
-        public int FilesTotal => mDownloadQueue.Count +
-                                 mActiveDownloads.Count +
-                                 mCompletedDownloads.Count;
-
-        public long BytesDownloaded => mDownloadedBytes +
-                                       mActiveDownloads.Values.Sum();
-
-        public long SizeTotal { get; private set; }
-
-        public UpdateStatus Status { get; private set; } = UpdateStatus.Checking;
-
-        public Exception Exception { get; private set; }
-
-        public bool ReplacedSelf { get; private set; }
-
-
 
         public Updater(string updateUrl, string currentVersionPath, bool isClient, int maxDownloadThreads = 10)
         {
@@ -76,12 +48,31 @@ namespace Intersect.Updater
 
             mDownloadThreadCount = maxDownloadThreads;
             mCurrentVersionPath = currentVersionPath;
-            mIsClient = isClient;
+            IsClient = isClient;
 
             mUpdateThread = new Thread(RunUpdates);
             mUpdateThread.Start();
         }
 
+        public long BytesDownloaded => mDownloadedBytes + mActiveDownloads.Values.Sum();
+
+        public Exception Exception { get; private set; }
+
+        public int FilesRemaining => mDownloadQueue.Count + mActiveDownloads.Count;
+
+        public int FilesTotal => mDownloadQueue.Count + mActiveDownloads.Count + mCompletedDownloads.Count;
+
+        public bool IsClient { get; }
+
+        public float Progress => ((float)BytesDownloaded / (float)SizeTotal) * 100f;
+
+        public bool ReplacedSelf { get; private set; }
+
+        public long SizeRemaining => SizeTotal - BytesDownloaded;
+
+        public long SizeTotal { get; private set; }
+
+        public UpdateStatus Status { get; private set; } = UpdateStatus.Checking;
 
         private async void RunUpdates()
         {
@@ -106,7 +97,7 @@ namespace Intersect.Updater
                         mConfigUrl = ClientConfiguration.Instance.UpdateUrl.TrimEnd(new char[] { '/' }) + "/update.json";
                     }
 
-                    var jsonBytes = wc.DownloadData(mConfigUrl + "?token=" + Environment.TickCount);
+                    var jsonBytes = wc.DownloadData($"{mConfigUrl}?token={Environment.TickCount}");
                     var json = Encoding.UTF8.GetString(jsonBytes);
                     mUpdate = JsonConvert.DeserializeObject<Update>(json);
 
@@ -120,24 +111,19 @@ namespace Intersect.Updater
                             File.ReadAllText(mCurrentVersionPath)
                         );
 
-
                         updateRequired = false;
-                        foreach (var file in mUpdate.Files.Where(f => f.ClientIgnore == false))
+                        foreach (var file in mUpdate.Files.Where(f => !(IsClient ? f.ClientIgnore : f.EditorIgnore)))
                         {
-                            var checkFile = mCachedVersion.Files.FirstOrDefault(f => f.Path == file.Path);
+                            var checkFile = mCachedVersion.Files.FirstOrDefault(f => string.Equals(file.Path, f.Path, StringComparison.Ordinal));
                             if (checkFile == null || checkFile.Size != file.Size || checkFile.Hash != file.Hash)
                             {
                                 updateRequired = true;
                             }
-                            else
+                            else if (!File.Exists(file.Path) || !mUpdate.TrustCache)
                             {
-                                if (!File.Exists(file.Path) || !mUpdate.TrustCache)
-                                {
-                                    updateRequired = true;
-                                }
+                                updateRequired = true;
                             }
                         }
-
                     }
 
                     //If we are doing a forced full check or if we don't have a current version file then we will start from scratch
@@ -168,7 +154,7 @@ namespace Intersect.Updater
                         mCurrentVersion = new Update();
                         foreach (var file in mUpdate.Files)
                         {
-                            if ((mIsClient && file.ClientIgnore || !mIsClient && file.EditorIgnore))
+                            if ((IsClient && file.ClientIgnore || !IsClient && file.EditorIgnore))
                             {
                                 if (mCachedVersion != null)
                                 {
@@ -298,7 +284,7 @@ namespace Intersect.Updater
             File.WriteAllText(
                 mCurrentVersionPath,
                 JsonConvert.SerializeObject(
-                    mCurrentVersion, Formatting.Indented,
+                    mCurrentVersion.Filter(IsClient), Formatting.Indented,
                     new JsonSerializerSettings { DefaultValueHandling = DefaultValueHandling.Ignore }
                 )
             );
@@ -338,14 +324,21 @@ namespace Intersect.Updater
                 if (mDownloadQueue.TryPop(out UpdateFile file))
                 {
                     files.Add(file.Path);
-                    mActiveDownloads.TryAdd(file,0);
+                    mActiveDownloads.TryAdd(file, 0);
                 }
             }
-            var msg = new HttpRequestMessage(HttpMethod.Post, mUpdate.StreamingUrl + "?token=" + Environment.TickCount)
+
+            HttpResponseMessage response;
+
+            var request = new HttpRequestMessage(HttpMethod.Post, $"{mUpdate.StreamingUrl}?token={Environment.TickCount}")
             {
                 Content = new StringContent(JsonConvert.SerializeObject(files), Encoding.UTF8, "application/json"),
             };
-            var response = await client.SendAsync(msg, HttpCompletionOption.ResponseHeadersRead);
+
+            using (request)
+            {
+                response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            }
 
             using (var str = await response.Content.ReadAsStreamAsync())
             {
@@ -369,7 +362,7 @@ namespace Intersect.Updater
                                 {
                                     chunk = size - downloaded;
                                 }
-                                dataStream.Write(br.ReadBytes(chunk),0,chunk);
+                                dataStream.Write(br.ReadBytes(chunk), 0, chunk);
                                 downloaded += chunk;
                                 if (file != null)
                                 {
@@ -451,7 +444,7 @@ namespace Intersect.Updater
                 catch (Exception ex)
                 {
                     //Errored
-                    Log.Error("Failed to download streamed files, failure occured on " );
+                    Log.Error("Failed to download streamed files, failure occured on ");
                     return false;
                 }
             }
@@ -567,7 +560,7 @@ namespace Intersect.Updater
         {
             if (fileData.Length != file.Size)
             {
-                throw new Exception("[File Length Mismatch - Got " + fileData.Length + " bytes, Expected " + file.Size + "]");
+                throw new Exception($"[File Length Mismatch - Got {fileData.Length} bytes, Expected {file.Size}]");
             }
 
             //Check MD5
@@ -588,12 +581,13 @@ namespace Intersect.Updater
 
         private void BeforeReplaceFile(UpdateFile file)
         {
+            var oldFilePath = $"{file.Path}.old";
             //Delete .old first if exists
-            if (File.Exists(file.Path + ".old"))
+            if (File.Exists(oldFilePath))
             {
                 try
                 {
-                    File.Delete(file.Path + ".old");
+                    File.Delete(oldFilePath);
                 }
                 catch { }
             }
@@ -609,7 +603,7 @@ namespace Intersect.Updater
                 {
                     try
                     {
-                        File.Move(file.Path, file.Path + ".old");
+                        File.Move(file.Path, oldFilePath);
                     }
                     catch
                     {
@@ -673,9 +667,9 @@ namespace Intersect.Updater
             while (len >= 1024 && order < sizes.Length - 1)
             {
                 order++;
-                len = len / 1024;
+                len /= 1024;
             }
-            return String.Format("{0:0.##} {1} Left", len, sizes[order]);
+            return $"{len:0.##} {sizes[order]}";
         }
 
         public bool CheckUpdaterContentLoaded()

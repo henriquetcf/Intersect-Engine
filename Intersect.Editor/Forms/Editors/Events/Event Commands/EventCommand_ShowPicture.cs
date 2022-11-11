@@ -20,21 +20,18 @@ namespace Intersect.Editor.Forms.Editors.Events.Event_Commands
             InitializeComponent();
             mMyCommand = refCommand;
             mEventEditor = editor;
+            InitLocalization();
             cmbPicture.Items.Clear();
-            cmbPicture.Items.AddRange(
-                GameContentManager.GetSmartSortedTextureNames(GameContentManager.TextureType.Image)
-            );
 
-            if (cmbPicture.Items.IndexOf(mMyCommand.File) > -1)
+            var sortedTextures = GameContentManager.GetSmartSortedTextureNames(GameContentManager.TextureType.Image);
+
+            if (sortedTextures.Length > 0)
             {
-                cmbPicture.SelectedIndex = cmbPicture.Items.IndexOf(mMyCommand.File);
+                cmbPicture.Items.AddRange(sortedTextures);
             }
             else
             {
-                if (cmbPicture.Items.Count > 0)
-                {
-                    cmbPicture.SelectedIndex = 0;
-                }
+                cmbPicture.Items.Add(Strings.General.None);
             }
 
             cmbSize.Items.Clear();
@@ -42,18 +39,15 @@ namespace Intersect.Editor.Forms.Editors.Events.Event_Commands
             cmbSize.Items.Add(Strings.EventShowPicture.fullscreen);
             cmbSize.Items.Add(Strings.EventShowPicture.halfscreen);
             cmbSize.Items.Add(Strings.EventShowPicture.stretchtofit);
-            if (mMyCommand.Size > -1)
-            {
-                cmbSize.SelectedIndex = mMyCommand.Size;
-            }
-            else
-            {
-                cmbSize.SelectedIndex = 0;
-            }
 
-            chkClick.Checked = mMyCommand.Clickable;
-
-            InitLocalization();
+            if (mMyCommand != null)
+            {
+                cmbPicture.SelectedIndex = Math.Max(0, cmbPicture.Items.IndexOf(mMyCommand.File));
+                cmbSize.SelectedIndex = Math.Max(0, mMyCommand.Size);
+                chkClick.Checked = mMyCommand.Clickable;
+                nudHideTime.Value = mMyCommand.HideTime;
+                chkWaitUntilClosed.Checked = mMyCommand.WaitUntilClosed;
+            }
         }
 
         private void InitLocalization()
@@ -64,6 +58,8 @@ namespace Intersect.Editor.Forms.Editors.Events.Event_Commands
             btnCancel.Text = Strings.EventShowPicture.cancel;
             chkClick.Text = Strings.EventShowPicture.checkbox;
             lblSize.Text = Strings.EventShowPicture.size;
+            lblHide.Text = Strings.EventShowPicture.hide;
+            chkWaitUntilClosed.Text = Strings.EventShowPicture.wait;
         }
 
         private void btnSave_Click(object sender, EventArgs e)
@@ -71,6 +67,8 @@ namespace Intersect.Editor.Forms.Editors.Events.Event_Commands
             mMyCommand.File = cmbPicture.Text;
             mMyCommand.Size = cmbSize.SelectedIndex;
             mMyCommand.Clickable = chkClick.Checked;
+            mMyCommand.HideTime = (int)nudHideTime.Value;
+            mMyCommand.WaitUntilClosed = chkWaitUntilClosed.Checked;
             mEventEditor.FinishCommandEdit();
         }
 

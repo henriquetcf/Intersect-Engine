@@ -1,27 +1,25 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
 using Intersect.Logging;
 
-using JetBrains.Annotations;
-
 using Newtonsoft.Json;
 
 namespace Intersect
 {
 
-    public class ColorConverter : JsonConverter<Color>
+    public partial class ColorConverter : JsonConverter<Color>
     {
 
-        public override void WriteJson([NotNull] JsonWriter writer, Color value, JsonSerializer serializer)
+        public override void WriteJson(JsonWriter writer, Color value, JsonSerializer serializer)
         {
             writer.WriteValue($"{value?.A ?? 0},{value?.R ?? 0},{value?.G ?? 0},{value?.B ?? 0}");
         }
 
         public override Color ReadJson(
-            [NotNull] JsonReader reader,
+            JsonReader reader,
             Type objectType,
             Color existingValue,
             bool hasExistingValue,
@@ -33,7 +31,7 @@ namespace Intersect
 
     }
 
-    public struct LabelColor
+    public partial struct LabelColor
     {
 
         public Color Name;
@@ -64,7 +62,7 @@ namespace Intersect
             Root = JsonConvert.DeserializeObject<RootNamespace>(json, new ColorConverter()) ?? Root;
         }
 
-        public sealed class NamesNamespace
+        public sealed partial class NamesNamespace
         {
 
             public LabelColor Events = new LabelColor(Color.White, Color.Black, new Color(180, 0, 0, 0));
@@ -90,7 +88,7 @@ namespace Intersect
 
         }
 
-        public sealed class ChatNamespace
+        public sealed partial class ChatNamespace
         {
 
             public Color AdminChat = Color.Cyan;
@@ -102,6 +100,8 @@ namespace Intersect
             public Color AnnouncementChat = Color.Yellow;
 
             public Color ChatBubbleText = Color.Black;
+
+            public Color ChatBubbleTextOutline = Color.Transparent;
 
             public Color GlobalChat = new Color(255, 220, 220, 220);
 
@@ -117,13 +117,17 @@ namespace Intersect
 
             public Color PlayerMsg = new Color(255, 220, 220, 220);
 
-            public Color PrivateChat = Color.Magenta;
+            public Color PrivateChatFrom = Color.Magenta;
+
+            public Color PrivateChatTo = new Color(190, 0, 190);
 
             public Color ProximityMsg = new Color(255, 220, 220, 220);
 
+            public Color GuildChat = new Color(255, 255, 165, 0);
+
         }
 
-        public sealed class QuestsNamespace
+        public sealed partial class QuestAlertNamespace
         {
 
             public Color Abandoned = Color.Red;
@@ -138,7 +142,20 @@ namespace Intersect
 
         }
 
-        public sealed class AlertsNamespace
+        public sealed partial class QuestWindowNamespace
+        {
+
+            public Color Completed = Color.Green;
+
+            public Color InProgress = Color.Yellow;
+
+            public Color NotStarted = Color.Red;
+
+            public Color QuestDesc = Color.White;
+
+        }
+
+        public sealed partial class AlertsNamespace
         {
 
             public Color Accepted = Color.Green;
@@ -159,7 +176,7 @@ namespace Intersect
 
         }
 
-        public sealed class CombatNamespace
+        public sealed partial class CombatNamespace
         {
 
             public Color AddMana = new Color(255, 0, 0, 255);
@@ -198,7 +215,7 @@ namespace Intersect
 
         }
 
-        public sealed class ItemsNamespace
+        public sealed partial class ItemsNamespace
         {
 
             public Color Bound = Color.Red;
@@ -219,6 +236,16 @@ namespace Intersect
                 {3, Color.Blue},
                 {4, Color.Green},
                 {5, Color.Yellow},
+            };
+
+            public Dictionary<int, LabelColor> MapRarities = new Dictionary<int, LabelColor>() 
+            {
+                { 0, new LabelColor(Color.White, Color.Black, new Color(100, 0, 0, 0)) },
+                { 1, new LabelColor(Color.Gray, Color.Black, new Color(100, 0, 0, 0)) },
+                { 2, new LabelColor(Color.Red, Color.Black, new Color(100, 0, 0, 0)) },
+                { 3, new LabelColor(Color.Blue, Color.Black, new Color(100, 0, 0, 0)) },
+                { 4, new LabelColor(Color.Gray, Color.Black, new Color(100, 0, 0, 0)) },
+                { 5, new LabelColor(Color.Yellow, Color.Black, new Color(100, 0, 0, 0)) },
             };
 
         }
@@ -277,24 +304,25 @@ namespace Intersect
             Root = new RootNamespace();
         }
 
-        [NotNull]
         private static RootNamespace Root { get; set; }
 
         // ReSharper disable MemberHidesStaticFromOuterClass
-        private sealed class RootNamespace
+        private sealed partial class RootNamespace
         {
 
-            [NotNull] public readonly AlertsNamespace Alerts = new AlertsNamespace();
+            public readonly AlertsNamespace Alerts = new AlertsNamespace();
 
-            [NotNull] public readonly ChatNamespace Chat = new ChatNamespace();
+            public readonly ChatNamespace Chat = new ChatNamespace();
 
-            [NotNull] public readonly CombatNamespace Combat = new CombatNamespace();
+            public readonly CombatNamespace Combat = new CombatNamespace();
 
-            [NotNull] public readonly ItemsNamespace Items = new ItemsNamespace();
+            public readonly ItemsNamespace Items = new ItemsNamespace();
 
-            [NotNull] public readonly NamesNamespace Names = new NamesNamespace();
+            public readonly NamesNamespace Names = new NamesNamespace();
 
-            [NotNull] public readonly QuestsNamespace Quests = new QuestsNamespace();
+            public readonly QuestAlertNamespace QuestAlert = new QuestAlertNamespace();
+
+            public readonly QuestWindowNamespace QuestWindow = new QuestWindowNamespace();
 
         }
 
@@ -304,22 +332,18 @@ namespace Intersect
 
         #region Namespace Exposure
 
-        [NotNull]
         public static NamesNamespace Names => Root.Names;
 
-        [NotNull]
         public static ChatNamespace Chat => Root.Chat;
 
-        [NotNull]
-        public static QuestsNamespace Quests => Root.Quests;
+        public static QuestAlertNamespace QuestAlert => Root.QuestAlert;
 
-        [NotNull]
+        public static QuestWindowNamespace QuestWindow => Root.QuestWindow;
+
         public static AlertsNamespace Alerts => Root.Alerts;
 
-        [NotNull]
         public static CombatNamespace Combat => Root.Combat;
 
-        [NotNull]
         public static ItemsNamespace Items => Root.Items;
 
         #endregion

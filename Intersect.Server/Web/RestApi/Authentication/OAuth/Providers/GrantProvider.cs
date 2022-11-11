@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -10,23 +10,20 @@ using Intersect.Server.Database;
 using Intersect.Server.Database.PlayerData;
 using Intersect.Server.Web.RestApi.Configuration;
 
-using JetBrains.Annotations;
-
 using Microsoft.Owin.Security;
 using Microsoft.Owin.Security.OAuth;
 
 namespace Intersect.Server.Web.RestApi.Authentication.OAuth.Providers
 {
 
-    internal class GrantProvider : OAuthAuthorizationServerProvider
+    internal partial class GrantProvider : OAuthAuthorizationServerProvider
     {
 
-        public GrantProvider([NotNull] ApiConfiguration configuration)
+        public GrantProvider(ApiConfiguration configuration)
         {
             Configuration = configuration;
         }
 
-        [NotNull]
         private ApiConfiguration Configuration { get; }
 
         public override Task AuthorizationEndpointResponse(OAuthAuthorizationEndpointResponseContext context)
@@ -60,7 +57,7 @@ namespace Intersect.Server.Web.RestApi.Authentication.OAuth.Providers
         }
 
         public override async Task GrantResourceOwnerCredentials(
-            [NotNull] OAuthGrantResourceOwnerCredentialsContext context
+            OAuthGrantResourceOwnerCredentialsContext context
         )
         {
             var owinContext = context.OwinContext;
@@ -89,11 +86,17 @@ namespace Intersect.Server.Web.RestApi.Authentication.OAuth.Providers
 
             username = username.Trim();
 
-            var user = DbInterface.GetUser(username);
+            var user = User.Find(username);
             if (!user?.IsPasswordValid(password.ToUpper().Trim()) ?? true)
             {
                 context.SetError("credentials_invalid");
 
+                return;
+            }
+
+            if (user.Ban != default)
+            {
+                context.Rejected();
                 return;
             }
 
@@ -112,8 +115,11 @@ namespace Intersect.Server.Web.RestApi.Authentication.OAuth.Providers
             var ticketId = Guid.NewGuid();
             owinContext.Set("ticket_id", ticketId);
 
+            var userIdString = user.Id.ToString();
             var identity = new ClaimsIdentity(options.AuthenticationType);
-            identity.AddClaim(new Claim(IntersectClaimTypes.UserId, user.Id.ToString()));
+            identity.AddClaim(new Claim(ClaimTypes.Name, user.Name));
+            identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, userIdString));
+            identity.AddClaim(new Claim(IntersectClaimTypes.UserId, userIdString));
             identity.AddClaim(new Claim(IntersectClaimTypes.UserName, user.Name));
             identity.AddClaim(new Claim(IntersectClaimTypes.Email, user.Email));
             identity.AddClaim(new Claim(IntersectClaimTypes.ClientId, clientId.ToString()));
@@ -181,7 +187,7 @@ namespace Intersect.Server.Web.RestApi.Authentication.OAuth.Providers
         }
 
         public override async Task ValidateClientAuthentication(
-            [NotNull] OAuthValidateClientAuthenticationContext context
+            OAuthValidateClientAuthenticationContext context
         )
         {
             var parameters = context.Parameters;
@@ -211,12 +217,12 @@ namespace Intersect.Server.Web.RestApi.Authentication.OAuth.Providers
             switch (grantType)
             {
                 case "password":
-                    context.Validated();
+                    _ = context.Validated();
 
                     return;
 
                 case "refresh_token":
-                    context.Validated();
+                    _ = context.Validated();
 
                     return;
 

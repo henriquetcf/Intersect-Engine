@@ -2,6 +2,10 @@
 using System.Diagnostics;
 using System.Linq;
 
+using Intersect.Logging;
+
+using Moq;
+
 using NUnit.Framework;
 
 using Assert = NUnit.Framework.Assert;
@@ -9,9 +13,9 @@ using Assert = NUnit.Framework.Assert;
 namespace Intersect.Factories
 {
     [TestFixture]
-    public class FactoryRegistryTests
+    public partial class FactoryRegistryTests
     {
-        private class IntFactory : IFactory<int>
+        private partial class IntFactory : IFactory<int>
         {
             /// <inheritdoc />
             public int Create(params object[] args) =>
@@ -59,6 +63,8 @@ namespace Intersect.Factories
         [Test]
         public void TryCreateTest_NoRegisteredFactory()
         {
+            var mockLogger = new Mock<Logger>();
+            Log.Default = mockLogger.Object;
             Assert.IsFalse(FactoryRegistry<int>.TryCreate(out var created));
             Assert.AreEqual(default(int), created);
         }

@@ -15,7 +15,7 @@ namespace Intersect.Server.Web.RestApi.Routes.V1
 
     [RoutePrefix("gameobjects")]
     [ConfigurableAuthorize]
-    public sealed class GameObjectController : ApiController
+    public sealed partial class GameObjectController : ApiController
     {
 
         [Route("{objType}")]
@@ -38,10 +38,10 @@ namespace Intersect.Server.Web.RestApi.Routes.V1
             {
                 var entries = gameObjectType == GameObjectType.Event
                     ? lookup.Where(obj => ((EventBase) obj.Value).CommonEvent)
-                        .OrderBy(obj => obj.Value.TimeCreated)
+                        .OrderBy(obj => obj.Value.Name)
                         .Skip(pageInfo.Page * pageInfo.Count)
                         .Take(pageInfo.Count)
-                    : lookup.OrderBy(obj => obj.Value.TimeCreated)
+                    : lookup.OrderBy(obj => obj.Value.Name)
                         .Skip(pageInfo.Page * pageInfo.Count)
                         .Take(pageInfo.Count);
 
@@ -54,6 +54,32 @@ namespace Intersect.Server.Web.RestApi.Routes.V1
                     count = entries.Count(),
                     entries
                 };
+            }
+
+            return null;
+        }
+
+        [Route("{objType}/names")]
+        [HttpPost]
+        public object Names(string objType)
+        {
+            GameObjectType gameObjectType;
+            if (!Enum.TryParse<GameObjectType>(objType, true, out gameObjectType) ||
+                gameObjectType == GameObjectType.Time)
+            {
+                return Request.CreateErrorResponse(HttpStatusCode.BadRequest, @"Invalid object type.");
+            }
+
+            var lookup = GameObjectTypeExtensions.GetLookup(gameObjectType);
+
+            if (lookup != null)
+            {
+                
+                var entries = gameObjectType == GameObjectType.Event
+                    ? lookup.Where(obj => ((EventBase)obj.Value).CommonEvent).Select(t => new { t.Key, t.Value.Name }).ToDictionary(t => t.Key, t => t.Name)
+                    : lookup.Select(t => new { t.Key, t.Value.Name }).ToDictionary(t => t.Key, t => t.Name);
+
+                return entries;
             }
 
             return null;

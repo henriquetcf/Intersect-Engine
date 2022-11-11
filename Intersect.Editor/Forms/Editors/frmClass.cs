@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Windows.Forms;
 
 using DarkUI.Forms;
@@ -27,16 +28,26 @@ namespace Intersect.Editor.Forms.Editors
 
         private ClassBase mEditorItem;
 
-        private List<string> mExpandedFolders = new List<string>();
-
         private List<string> mKnownFolders = new List<string>();
 
         public FrmClass()
         {
             ApplyHooks();
             InitializeComponent();
-            lstClasses.LostFocus += itemList_FocusChanged;
-            lstClasses.GotFocus += itemList_FocusChanged;
+            Icon = System.Drawing.Icon.ExtractAssociatedIcon(System.Reflection.Assembly.GetExecutingAssembly().Location);
+
+            cmbWarpMap.Items.Clear();
+            for (var i = 0; i < MapList.OrderedMaps.Count; i++)
+            {
+                cmbWarpMap.Items.Add(MapList.OrderedMaps[i].Name);
+            }
+
+            lstGameObjects.Init(UpdateToolStripItems, AssignEditorItem, toolStripItemNew_Click, toolStripItemCopy_Click, toolStripItemUndo_Click, toolStripItemPaste_Click, toolStripItemDelete_Click);
+        }
+        private void AssignEditorItem(Guid id)
+        {
+            mEditorItem = ClassBase.Get(id);
+            UpdateEditor();
         }
 
         protected override void GameObjectUpdatedDelegate(GameObjectType type)
@@ -81,14 +92,8 @@ namespace Intersect.Editor.Forms.Editors
 
         private void txtName_TextChanged(object sender, EventArgs e)
         {
-            mChangingName = true;
             mEditorItem.Name = txtName.Text;
-            if (lstClasses.SelectedNode != null && lstClasses.SelectedNode.Tag != null)
-            {
-                lstClasses.SelectedNode.Text = txtName.Text;
-            }
-
-            mChangingName = false;
+            lstGameObjects.UpdateText(txtName.Text);
         }
 
         private void UpdateSpellList(bool keepIndex = true)
@@ -169,6 +174,9 @@ namespace Intersect.Editor.Forms.Editors
                 nudScaling.Value = mEditorItem.Scaling;
                 cmbDamageType.SelectedIndex = mEditorItem.DamageType;
                 cmbScalingStat.SelectedIndex = mEditorItem.ScalingStat;
+                cmbAttackSprite.SelectedIndex = cmbAttackSprite.FindString(
+                        TextUtils.NullToNone(mEditorItem.AttackSpriteOverride)
+                );
                 cmbAttackAnimation.SelectedIndex = AnimationBase.ListIndex(mEditorItem.AttackAnimationId) + 1;
                 cmbAttackSpeedModifier.SelectedIndex = mEditorItem.AttackSpeedModifier;
                 nudAttackSpeedValue.Value = mEditorItem.AttackSpeedValue;
@@ -277,25 +285,30 @@ namespace Intersect.Editor.Forms.Editors
         private void frmClass_Load(object sender, EventArgs e)
         {
             cmbSprite.Items.Clear();
-            cmbSprite.Items.Add(Strings.General.none);
+            cmbSprite.Items.Add(Strings.General.None);
             cmbSprite.Items.AddRange(
                 GameContentManager.GetSmartSortedTextureNames(GameContentManager.TextureType.Entity)
             );
 
             cmbFace.Items.Clear();
-            cmbFace.Items.Add(Strings.General.none);
+            cmbFace.Items.Add(Strings.General.None);
             cmbFace.Items.AddRange(GameContentManager.GetSmartSortedTextureNames(GameContentManager.TextureType.Face));
             cmbSpawnItem.Items.Clear();
-            cmbSpawnItem.Items.Add(Strings.General.none);
+            cmbSpawnItem.Items.Add(Strings.General.None);
             cmbSpawnItem.Items.AddRange(ItemBase.Names);
             cmbSpell.Items.Clear();
             cmbSpell.Items.AddRange(SpellBase.Names);
             nudLevel.Maximum = Options.MaxLevel;
             cmbAttackAnimation.Items.Clear();
-            cmbAttackAnimation.Items.Add(Strings.General.none);
+            cmbAttackAnimation.Items.Add(Strings.General.None);
             cmbAttackAnimation.Items.AddRange(AnimationBase.Names);
+            cmbAttackSprite.Items.Clear();
+            cmbAttackSprite.Items.Add(Strings.General.None);
+            cmbAttackSprite.Items.AddRange(
+                GameContentManager.GetOverridesFor(GameContentManager.TextureType.Entity, "attack").ToArray()
+            );
             cmbScalingStat.Items.Clear();
-            for (var x = 0; x < Options.MaxStats; x++)
+            for (var x = 0; x < ((int)Stats.Speed) + 1; x++)
             {
                 cmbScalingStat.Items.Add(Globals.GetStatName(x));
             }
@@ -389,6 +402,7 @@ namespace Intersect.Editor.Forms.Editors
             lblScalingStat.Text = Strings.ClassEditor.scalingstat;
             lblScalingAmount.Text = Strings.ClassEditor.scalingamount;
             lblAttackAnimation.Text = Strings.ClassEditor.attackanimation;
+            lblSpriteAttack.Text = Strings.ClassEditor.AttackSpriteOverride;
 
             grpAttackSpeed.Text = Strings.NpcEditor.attackspeed;
             lblAttackSpeedModifier.Text = Strings.NpcEditor.attackspeedmodifier;
@@ -463,7 +477,7 @@ namespace Intersect.Editor.Forms.Editors
             expGrid.Columns.Add(totalCol);
 
             //Searching/Sorting
-            btnChronological.ToolTipText = Strings.ClassEditor.sortchronologically;
+            btnAlphabetical.ToolTipText = Strings.ClassEditor.sortalphabetically;
             txtSearch.Text = Strings.ClassEditor.searchplaceholder;
             lblFolder.Text = Strings.ClassEditor.folderlabel;
 
@@ -473,24 +487,6 @@ namespace Intersect.Editor.Forms.Editors
 
         public void InitEditor()
         {
-            var selectedId = Guid.Empty;
-            var folderNodes = new Dictionary<string, TreeNode>();
-            if (lstClasses.SelectedNode != null && lstClasses.SelectedNode.Tag != null)
-            {
-                selectedId = (Guid) lstClasses.SelectedNode.Tag;
-            }
-
-            lstClasses.Nodes.Clear();
-
-            cmbWarpMap.Items.Clear();
-            for (var i = 0; i < MapList.OrderedMaps.Count; i++)
-            {
-                cmbWarpMap.Items.Add(MapList.OrderedMaps[i].Name);
-            }
-
-            cmbWarpMap.SelectedIndex = 0;
-            cmbDirection.SelectedIndex = 0;
-
             //Collect folders
             var mFolders = new List<string>();
             foreach (var itm in ClassBase.Lookup)
@@ -512,70 +508,9 @@ namespace Intersect.Editor.Forms.Editors
             cmbFolder.Items.Add("");
             cmbFolder.Items.AddRange(mKnownFolders.ToArray());
 
-            lstClasses.Sorted = !btnChronological.Checked;
-
-            if (!btnChronological.Checked && !CustomSearch())
-            {
-                foreach (var folder in mFolders)
-                {
-                    var node = lstClasses.Nodes.Add(folder);
-                    node.ImageIndex = 0;
-                    node.SelectedImageIndex = 0;
-                    folderNodes.Add(folder, node);
-                }
-            }
-
-            foreach (var itm in ClassBase.ItemPairs)
-            {
-                var node = new TreeNode(itm.Value);
-                node.Tag = itm.Key;
-                node.ImageIndex = 1;
-                node.SelectedImageIndex = 1;
-
-                var folder = ClassBase.Get(itm.Key).Folder;
-                if (!string.IsNullOrEmpty(folder) && !btnChronological.Checked && !CustomSearch())
-                {
-                    var folderNode = folderNodes[folder];
-                    folderNode.Nodes.Add(node);
-                    if (itm.Key == selectedId)
-                    {
-                        folderNode.Expand();
-                    }
-                }
-                else
-                {
-                    lstClasses.Nodes.Add(node);
-                }
-
-                if (CustomSearch())
-                {
-                    if (!node.Text.ToLower().Contains(txtSearch.Text.ToLower()))
-                    {
-                        node.Remove();
-                    }
-                }
-
-                if (itm.Key == selectedId)
-                {
-                    lstClasses.SelectedNode = node;
-                }
-            }
-
-            var selectedNode = lstClasses.SelectedNode;
-
-            if (!btnChronological.Checked)
-            {
-                lstClasses.Sort();
-            }
-
-            lstClasses.SelectedNode = selectedNode;
-            foreach (var node in mExpandedFolders)
-            {
-                if (folderNodes.ContainsKey(node))
-                {
-                    folderNodes[node].Expand();
-                }
-            }
+            var items = ClassBase.Lookup.OrderBy(p => p.Value?.Name).Select(pair => new KeyValuePair<Guid, KeyValuePair<string, string>>(pair.Key,
+                new KeyValuePair<string, string>(((ClassBase)pair.Value)?.Name ?? Models.DatabaseObject<ClassBase>.Deleted, ((ClassBase)pair.Value)?.Folder ?? ""))).ToArray();
+            lstGameObjects.Repopulate(items, mFolders, btnAlphabetical.Checked, CustomSearch(), txtSearch.Text);
         }
 
         private void lstSprites_Click(object sender, EventArgs e)
@@ -913,11 +848,11 @@ namespace Intersect.Editor.Forms.Editors
 
         private void toolStripItemDelete_Click(object sender, EventArgs e)
         {
-            if (mEditorItem != null && lstClasses.Focused)
+            if (mEditorItem != null && lstGameObjects.Focused)
             {
                 if (DarkMessageBox.ShowWarning(
                         Strings.ClassEditor.deleteprompt, Strings.ClassEditor.deletetitle, DarkDialogButton.YesNo,
-                        Properties.Resources.Icon
+                        Icon
                     ) ==
                     DialogResult.Yes)
                 {
@@ -928,7 +863,7 @@ namespace Intersect.Editor.Forms.Editors
 
         private void toolStripItemCopy_Click(object sender, EventArgs e)
         {
-            if (mEditorItem != null && lstClasses.Focused)
+            if (mEditorItem != null && lstGameObjects.Focused)
             {
                 mCopiedItem = mEditorItem.JsonData;
                 toolStripItemPaste.Enabled = true;
@@ -937,7 +872,7 @@ namespace Intersect.Editor.Forms.Editors
 
         private void toolStripItemPaste_Click(object sender, EventArgs e)
         {
-            if (mEditorItem != null && mCopiedItem != null && lstClasses.Focused)
+            if (mEditorItem != null && mCopiedItem != null && lstGameObjects.Focused)
             {
                 mEditorItem.Load(mCopiedItem, true);
                 UpdateEditor();
@@ -950,7 +885,7 @@ namespace Intersect.Editor.Forms.Editors
             {
                 if (DarkMessageBox.ShowWarning(
                         Strings.ClassEditor.undoprompt, Strings.ClassEditor.undotitle, DarkDialogButton.YesNo,
-                        Properties.Resources.Icon
+                        Icon
                     ) ==
                     DialogResult.Yes)
                 {
@@ -960,43 +895,12 @@ namespace Intersect.Editor.Forms.Editors
             }
         }
 
-        private void itemList_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Control)
-            {
-                if (e.KeyCode == Keys.Z)
-                {
-                    toolStripItemUndo_Click(null, null);
-                }
-                else if (e.KeyCode == Keys.V)
-                {
-                    toolStripItemPaste_Click(null, null);
-                }
-                else if (e.KeyCode == Keys.C)
-                {
-                    toolStripItemCopy_Click(null, null);
-                }
-            }
-            else
-            {
-                if (e.KeyCode == Keys.Delete)
-                {
-                    toolStripItemDelete_Click(null, null);
-                }
-            }
-        }
-
         private void UpdateToolStripItems()
         {
-            toolStripItemCopy.Enabled = mEditorItem != null && lstClasses.Focused;
-            toolStripItemPaste.Enabled = mEditorItem != null && mCopiedItem != null && lstClasses.Focused;
-            toolStripItemDelete.Enabled = mEditorItem != null && lstClasses.Focused;
-            toolStripItemUndo.Enabled = mEditorItem != null && lstClasses.Focused;
-        }
-
-        private void itemList_FocusChanged(object sender, EventArgs e)
-        {
-            UpdateToolStripItems();
+            toolStripItemCopy.Enabled = mEditorItem != null && lstGameObjects.Focused;
+            toolStripItemPaste.Enabled = mEditorItem != null && mCopiedItem != null && lstGameObjects.Focused;
+            toolStripItemDelete.Enabled = mEditorItem != null && lstGameObjects.Focused;
+            toolStripItemUndo.Enabled = mEditorItem != null && lstGameObjects.Focused;
         }
 
         private void form_KeyDown(object sender, KeyEventArgs e)
@@ -1014,6 +918,11 @@ namespace Intersect.Editor.Forms.Editors
         {
             mEditorItem.AttackAnimation =
                 AnimationBase.Get(AnimationBase.IdFromList(cmbAttackAnimation.SelectedIndex - 1));
+        }
+
+        private void cmbAttackSprite_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            mEditorItem.AttackSpriteOverride = TextUtils.SanitizeNone(cmbAttackSprite?.Text);
         }
 
         private void cmbDamageType_SelectedIndexChanged(object sender, EventArgs e)
@@ -1454,7 +1363,7 @@ namespace Intersect.Editor.Forms.Editors
                                         iFail++;
                                     }
 
-                                    //only traps a fail if the data has changed 
+                                    //only traps a fail if the data has changed
                                     //and you are pasting into a read only cell
                                 }
                             }
@@ -1572,73 +1481,11 @@ namespace Intersect.Editor.Forms.Editors
                 if (!cmbFolder.Items.Contains(folderName))
                 {
                     mEditorItem.Folder = folderName;
-                    mExpandedFolders.Add(folderName);
+                    lstGameObjects.ExpandFolder(folderName);
                     InitEditor();
                     cmbFolder.Text = folderName;
                 }
             }
-        }
-
-        private void lstClasses_NodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
-        {
-            var node = e.Node;
-            if (node != null)
-            {
-                if (e.Button == MouseButtons.Right)
-                {
-                    if (e.Node.Tag != null && e.Node.Tag.GetType() == typeof(Guid))
-                    {
-                        Clipboard.SetText(e.Node.Tag.ToString());
-                    }
-                }
-
-                var hitTest = lstClasses.HitTest(e.Location);
-                if (hitTest.Location != TreeViewHitTestLocations.PlusMinus)
-                {
-                    if (node.Nodes.Count > 0)
-                    {
-                        if (node.IsExpanded)
-                        {
-                            node.Collapse();
-                        }
-                        else
-                        {
-                            node.Expand();
-                        }
-                    }
-                }
-
-                if (node.IsExpanded)
-                {
-                    if (!mExpandedFolders.Contains(node.Text))
-                    {
-                        mExpandedFolders.Add(node.Text);
-                    }
-                }
-                else
-                {
-                    if (mExpandedFolders.Contains(node.Text))
-                    {
-                        mExpandedFolders.Remove(node.Text);
-                    }
-                }
-            }
-        }
-
-        private void lstClasses_AfterSelect(object sender, TreeViewEventArgs e)
-        {
-            if (mChangingName)
-            {
-                return;
-            }
-
-            if (lstClasses.SelectedNode == null || lstClasses.SelectedNode.Tag == null)
-            {
-                return;
-            }
-
-            mEditorItem = ClassBase.Get((Guid) lstClasses.SelectedNode.Tag);
-            UpdateEditor();
         }
 
         private void cmbFolder_SelectedIndexChanged(object sender, EventArgs e)
@@ -1647,9 +1494,9 @@ namespace Intersect.Editor.Forms.Editors
             InitEditor();
         }
 
-        private void btnChronological_Click(object sender, EventArgs e)
+        private void btnAlphabetical_Click(object sender, EventArgs e)
         {
-            btnChronological.Checked = !btnChronological.Checked;
+            btnAlphabetical.Checked = !btnAlphabetical.Checked;
             InitEditor();
         }
 
@@ -1692,7 +1539,6 @@ namespace Intersect.Editor.Forms.Editors
         }
 
         #endregion
-
     }
 
 }

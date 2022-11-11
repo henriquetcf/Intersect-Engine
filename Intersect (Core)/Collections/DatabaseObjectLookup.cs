@@ -8,19 +8,21 @@ using Intersect.Logging;
 using Intersect.Models;
 using Intersect.Utilities;
 
-using JetBrains.Annotations;
-
 namespace Intersect.Collections
 {
 
-    public class DatabaseObjectLookup : IGameObjectLookup<IDatabaseObject>
+    public partial class DatabaseObjectLookup : IGameObjectLookup<IDatabaseObject>
     {
 
-        [NotNull] private readonly SortedDictionary<Guid, IDatabaseObject> mIdMap;
+        private readonly SortedDictionary<Guid, IDatabaseObject> mIdMap;
 
-        [NotNull] private readonly object mLock;
+        private Dictionary<Guid, IDatabaseObject> mCachedClone;
 
-        public DatabaseObjectLookup([NotNull] Type storedType)
+        private bool mIsDirty = true;
+
+        private readonly object mLock;
+
+        public DatabaseObjectLookup(Type storedType)
         {
             mLock = new object();
             mIdMap = new SortedDictionary<Guid, IDatabaseObject>();
@@ -28,7 +30,6 @@ namespace Intersect.Collections
             StoredType = storedType;
         }
 
-        [NotNull]
         public Type StoredType { get; }
 
         public virtual IDatabaseObject this[Guid id]
@@ -37,7 +38,6 @@ namespace Intersect.Collections
             set => Set(id, value);
         }
 
-        [NotNull]
         public List<Guid> KeyList
         {
             get
@@ -49,7 +49,6 @@ namespace Intersect.Collections
             }
         }
 
-        [NotNull]
         public List<IDatabaseObject> ValueList
         {
             get
@@ -58,7 +57,7 @@ namespace Intersect.Collections
                 {
                     try
                     {
-                        return mIdMap.Values.OrderBy(databaseObject => databaseObject?.TimeCreated).ToList();
+                        return mIdMap.Values.OrderBy(databaseObject => databaseObject?.Name).ToList();
                     }
                     catch (Exception exception)
                     {
@@ -73,15 +72,12 @@ namespace Intersect.Collections
             }
         }
 
-        [NotNull]
         public Type IndexKeyType => typeof(int);
 
         public bool IsEmpty => Count < 1;
 
-        [NotNull]
         public Type KeyType => typeof(Guid);
 
-        [NotNull]
         public Type ValueType => typeof(IDatabaseObject);
 
         public virtual int Count
@@ -95,22 +91,24 @@ namespace Intersect.Collections
             }
         }
 
-        [NotNull]
         public virtual IDictionary<Guid, IDatabaseObject> Clone
         {
             get
             {
-                lock (mLock)
+                if (mIsDirty || mCachedClone == null)
                 {
-                    return mIdMap.ToDictionary(pair => pair.Key, pair => pair.Value);
+                    lock (mLock)
+                    {
+                        mCachedClone = mIdMap.ToDictionary(pair => pair.Key, pair => pair.Value);
+                        mIsDirty = false;
+                    }
                 }
+                return mCachedClone;
             }
         }
 
-        [NotNull]
         public virtual ICollection<KeyValuePair<Guid, IDatabaseObject>> Pairs => Clone;
 
-        [NotNull]
         public virtual ICollection<Guid> Keys
         {
             get
@@ -122,7 +120,6 @@ namespace Intersect.Collections
             }
         }
 
-        [NotNull]
         public virtual ICollection<IDatabaseObject> Values => ValueList;
 
         public virtual IDatabaseObject Get(Guid id)
@@ -169,7 +166,7 @@ namespace Intersect.Collections
             return InternalSet(value, false);
         }
 
-        public IDatabaseObject AddNew([NotNull] Type type, Guid id)
+        public IDatabaseObject AddNew(Type type, Guid id)
         {
             var idConstructor = type.GetConstructor(new[] {KeyType});
             if (idConstructor == null)
@@ -212,6 +209,7 @@ namespace Intersect.Collections
 
             lock (mLock)
             {
+                mIsDirty = true;
                 return mIdMap.Remove(value.Id);
             }
         }
@@ -245,6 +243,7 @@ namespace Intersect.Collections
         {
             lock (mLock)
             {
+                mIsDirty = true;
                 mIdMap.Clear();
             }
         }
@@ -346,6 +345,7 @@ namespace Intersect.Collections
                     return false;
                 }
 
+                mIsDirty = true;
                 mIdMap[value.Id] = value;
 
                 return true;

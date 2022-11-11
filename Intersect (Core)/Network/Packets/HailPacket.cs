@@ -2,12 +2,9 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
 
-using Ceras;
-
 using Intersect.Logging;
 using Intersect.Memory;
-
-using JetBrains.Annotations;
+using MessagePack;
 
 #if INTERSECT_DIAGNOSTIC
 using Intersect.Logging;
@@ -15,11 +12,13 @@ using Intersect.Logging;
 
 namespace Intersect.Network.Packets
 {
-
-    public class HailPacket : ConnectionPacket
+    [MessagePackObject]
+    public partial class HailPacket : ConnectionPacket
     {
+        [IgnoreMember]
         private byte[] mVersionData;
 
+        [IgnoreMember]
         private RSAParameters mRsaParameters;
 
         public HailPacket()
@@ -41,14 +40,14 @@ namespace Intersect.Network.Packets
             RsaParameters = rsaParameters;
         }
 
-        [Exclude]
+        [IgnoreMember]
         public byte[] VersionData
         {
             get => mVersionData;
             set => mVersionData = value;
         }
 
-        [Exclude]
+        [IgnoreMember]
         public RSAParameters RsaParameters
         {
             get => mRsaParameters;

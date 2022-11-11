@@ -9,7 +9,7 @@ using Newtonsoft.Json;
 namespace Intersect.GameObjects
 {
 
-    public class ShopBase : DatabaseObject<ShopBase>, IFolderable
+    public partial class ShopBase : DatabaseObject<ShopBase>, IFolderable
     {
 
         [NotMapped] public List<ShopItem> BuyingItems = new List<ShopItem>();
@@ -59,12 +59,16 @@ namespace Intersect.GameObjects
             set => SellingItems = JsonConvert.DeserializeObject<List<ShopItem>>(value);
         }
 
+        public string BuySound { get; set; } = null;
+
+        public string SellSound { get; set; } = null;
+
         /// <inheritdoc />
         public string Folder { get; set; } = "";
 
     }
 
-    public class ShopItem
+    public partial class ShopItem
     {
 
         public Guid CostItemId;

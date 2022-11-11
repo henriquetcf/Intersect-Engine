@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 
 using DarkUI.Controls;
@@ -26,16 +27,20 @@ namespace Intersect.Editor.Forms.Editors
 
         private ProjectileBase mEditorItem;
 
-        private List<string> mExpandedFolders = new List<string>();
-
         private List<string> mKnownFolders = new List<string>();
 
         public FrmProjectile()
         {
             ApplyHooks();
             InitializeComponent();
-            lstProjectiles.LostFocus += itemList_FocusChanged;
-            lstProjectiles.GotFocus += itemList_FocusChanged;
+            Icon = System.Drawing.Icon.ExtractAssociatedIcon(System.Reflection.Assembly.GetExecutingAssembly().Location);
+
+            lstGameObjects.Init(UpdateToolStripItems, AssignEditorItem, toolStripItemNew_Click, toolStripItemCopy_Click, toolStripItemUndo_Click, toolStripItemPaste_Click, toolStripItemDelete_Click);
+        }
+        private void AssignEditorItem(Guid id)
+        {
+            mEditorItem = ProjectileBase.Get(id);
+            UpdateEditor();
         }
 
         protected override void GameObjectUpdatedDelegate(GameObjectType type)
@@ -55,6 +60,7 @@ namespace Intersect.Editor.Forms.Editors
         {
             foreach (var item in mChanged)
             {
+                item.GrappleHookOptions.Sort();
                 item.RestoreBackup();
                 item.DeleteBackup();
             }
@@ -69,6 +75,7 @@ namespace Intersect.Editor.Forms.Editors
             //Send Changed items
             foreach (var item in mChanged)
             {
+                item.GrappleHookOptions.Sort();
                 PacketSender.SendSaveObject(item);
                 item.DeleteBackup();
             }
@@ -82,15 +89,15 @@ namespace Intersect.Editor.Forms.Editors
         {
             mDirectionGrid = new Bitmap("resources/misc/directions.png");
             cmbAnimation.Items.Clear();
-            cmbAnimation.Items.Add(Strings.General.none);
+            cmbAnimation.Items.Add(Strings.General.None);
             cmbAnimation.Items.AddRange(AnimationBase.Names);
 
             cmbItem.Items.Clear();
-            cmbItem.Items.Add(Strings.General.none);
+            cmbItem.Items.Add(Strings.General.None);
             cmbItem.Items.AddRange(ItemBase.Names);
 
             cmbSpell.Items.Clear();
-            cmbSpell.Items.Add(Strings.General.none);
+            cmbSpell.Items.Add(Strings.General.None);
             cmbSpell.Items.AddRange(SpellBase.Names);
 
             InitLocalization();
@@ -116,7 +123,12 @@ namespace Intersect.Editor.Forms.Editors
             lblRange.Text = Strings.ProjectileEditor.range;
             lblKnockback.Text = Strings.ProjectileEditor.knockback;
             lblSpell.Text = Strings.ProjectileEditor.spell;
-            chkGrapple.Text = Strings.ProjectileEditor.grapple;
+
+            grpGrappleOptions.Text = Strings.ProjectileEditor.GrappleOptionsTitle;
+            chkGrappleOnMap.Text = Strings.ProjectileEditor.GrappleOpts[GrappleOptions.MapAttribute];
+            chkGrappleOnPlayer.Text = Strings.ProjectileEditor.GrappleOpts[GrappleOptions.Player];
+            chkGrappleOnNpc.Text = Strings.ProjectileEditor.GrappleOpts[GrappleOptions.NPC];
+            chkGrappleOnResource.Text = Strings.ProjectileEditor.GrappleOpts[GrappleOptions.Resource];
 
             grpSpawns.Text = Strings.ProjectileEditor.spawns;
 
@@ -138,7 +150,7 @@ namespace Intersect.Editor.Forms.Editors
             lblAmmoAmount.Text = Strings.ProjectileEditor.ammoamount;
 
             //Searching/Sorting
-            btnChronological.ToolTipText = Strings.ProjectileEditor.sortchronologically;
+            btnAlphabetical.ToolTipText = Strings.ProjectileEditor.sortalphabetically;
             txtSearch.Text = Strings.ProjectileEditor.searchplaceholder;
             lblFolder.Text = Strings.ProjectileEditor.folderlabel;
 
@@ -164,7 +176,6 @@ namespace Intersect.Editor.Forms.Editors
                 chkIgnoreActiveResources.Checked = mEditorItem.IgnoreActiveResources;
                 chkIgnoreInactiveResources.Checked = mEditorItem.IgnoreExhaustedResources;
                 chkIgnoreZDimensionBlocks.Checked = mEditorItem.IgnoreZDimension;
-                chkGrapple.Checked = mEditorItem.GrappleHook;
                 chkPierce.Checked = mEditorItem.PierceTarget;
                 cmbItem.SelectedIndex = ItemBase.ListIndex(mEditorItem.AmmoItemId) + 1;
                 nudConsume.Value = mEditorItem.AmmoRequired;
@@ -183,6 +194,8 @@ namespace Intersect.Editor.Forms.Editors
                     mChanged.Add(mEditorItem);
                     mEditorItem.MakeBackup();
                 }
+
+                UpdateGrappleOptions();
             }
             else
             {
@@ -243,7 +256,7 @@ namespace Intersect.Editor.Forms.Editors
                 {
                     lstAnimations.Items.Add(
                         Strings.ProjectileEditor.animationline.ToString(
-                            n, mEditorItem.Animations[i].SpawnRange, Strings.General.none
+                            n, mEditorItem.Animations[i].SpawnRange, Strings.General.None
                         )
                     );
                 }
@@ -269,6 +282,26 @@ namespace Intersect.Editor.Forms.Editors
                 lblSpawnRange.Text = Strings.ProjectileEditor.spawnrange.ToString(
                     1, mEditorItem.Animations[lstAnimations.SelectedIndex].SpawnRange
                 );
+            }
+        }
+
+        private void UpdateGrappleOptions()
+        {
+            chkGrappleOnMap.Checked = mEditorItem.GrappleHookOptions.Contains(GrappleOptions.MapAttribute);
+            chkGrappleOnPlayer.Checked = mEditorItem.GrappleHookOptions.Contains(GrappleOptions.Player);
+            chkGrappleOnNpc.Checked = mEditorItem.GrappleHookOptions.Contains(GrappleOptions.NPC);
+            chkGrappleOnResource.Checked = mEditorItem.GrappleHookOptions.Contains(GrappleOptions.Resource);
+        }
+
+        private void ChangeGrappleOptions(GrappleOptions option, bool chkValue)
+        {
+            if(chkValue && !mEditorItem.GrappleHookOptions.Contains(option))
+            {
+                mEditorItem.GrappleHookOptions.Add(option);
+            }
+            else if(!chkValue)
+            {
+                mEditorItem.GrappleHookOptions.Remove(option);
             }
         }
 
@@ -421,14 +454,8 @@ namespace Intersect.Editor.Forms.Editors
 
         private void txtName_TextChanged(object sender, EventArgs e)
         {
-            mChangingName = true;
             mEditorItem.Name = txtName.Text;
-            if (lstProjectiles.SelectedNode != null && lstProjectiles.SelectedNode.Tag != null)
-            {
-                lstProjectiles.SelectedNode.Text = txtName.Text;
-            }
-
-            mChangingName = false;
+            lstGameObjects.UpdateText(txtName.Text);
         }
 
         private void chkRotation_CheckedChanged(object sender, EventArgs e)
@@ -489,11 +516,6 @@ namespace Intersect.Editor.Forms.Editors
             mEditorItem.PierceTarget = chkPierce.Checked;
         }
 
-        private void chkGrapple_CheckedChanged(object sender, EventArgs e)
-        {
-            mEditorItem.GrappleHook = chkGrapple.Checked;
-        }
-
         private void btnAdd_Click(object sender, EventArgs e)
         {
             //Clone the previous animation to save time, set the end point to always be the quantity of spawns.
@@ -538,11 +560,11 @@ namespace Intersect.Editor.Forms.Editors
 
         private void toolStripItemDelete_Click(object sender, EventArgs e)
         {
-            if (mEditorItem != null && lstProjectiles.Focused)
+            if (mEditorItem != null && lstGameObjects.Focused)
             {
                 if (DarkMessageBox.ShowWarning(
                         Strings.ProjectileEditor.deleteprompt, Strings.ProjectileEditor.deletetitle,
-                        DarkDialogButton.YesNo, Properties.Resources.Icon
+                        DarkDialogButton.YesNo, Icon
                     ) ==
                     DialogResult.Yes)
                 {
@@ -553,7 +575,7 @@ namespace Intersect.Editor.Forms.Editors
 
         private void toolStripItemCopy_Click(object sender, EventArgs e)
         {
-            if (mEditorItem != null && lstProjectiles.Focused)
+            if (mEditorItem != null && lstGameObjects.Focused)
             {
                 mCopiedItem = mEditorItem.JsonData;
                 toolStripItemPaste.Enabled = true;
@@ -562,7 +584,7 @@ namespace Intersect.Editor.Forms.Editors
 
         private void toolStripItemPaste_Click(object sender, EventArgs e)
         {
-            if (mEditorItem != null && mCopiedItem != null && lstProjectiles.Focused)
+            if (mEditorItem != null && mCopiedItem != null && lstGameObjects.Focused)
             {
                 mEditorItem.Load(mCopiedItem, true);
                 UpdateEditor();
@@ -575,7 +597,7 @@ namespace Intersect.Editor.Forms.Editors
             {
                 if (DarkMessageBox.ShowWarning(
                         Strings.ProjectileEditor.undoprompt, Strings.ProjectileEditor.undotitle, DarkDialogButton.YesNo,
-                        Properties.Resources.Icon
+                        Icon
                     ) ==
                     DialogResult.Yes)
                 {
@@ -585,43 +607,12 @@ namespace Intersect.Editor.Forms.Editors
             }
         }
 
-        private void itemList_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Control)
-            {
-                if (e.KeyCode == Keys.Z)
-                {
-                    toolStripItemUndo_Click(null, null);
-                }
-                else if (e.KeyCode == Keys.V)
-                {
-                    toolStripItemPaste_Click(null, null);
-                }
-                else if (e.KeyCode == Keys.C)
-                {
-                    toolStripItemCopy_Click(null, null);
-                }
-            }
-            else
-            {
-                if (e.KeyCode == Keys.Delete)
-                {
-                    toolStripItemDelete_Click(null, null);
-                }
-            }
-        }
-
         private void UpdateToolStripItems()
         {
-            toolStripItemCopy.Enabled = mEditorItem != null && lstProjectiles.Focused;
-            toolStripItemPaste.Enabled = mEditorItem != null && mCopiedItem != null && lstProjectiles.Focused;
-            toolStripItemDelete.Enabled = mEditorItem != null && lstProjectiles.Focused;
-            toolStripItemUndo.Enabled = mEditorItem != null && lstProjectiles.Focused;
-        }
-
-        private void itemList_FocusChanged(object sender, EventArgs e)
-        {
-            UpdateToolStripItems();
+            toolStripItemCopy.Enabled = mEditorItem != null && lstGameObjects.Focused;
+            toolStripItemPaste.Enabled = mEditorItem != null && mCopiedItem != null && lstGameObjects.Focused;
+            toolStripItemDelete.Enabled = mEditorItem != null && lstGameObjects.Focused;
+            toolStripItemUndo.Enabled = mEditorItem != null && lstGameObjects.Focused;
         }
 
         private void form_KeyDown(object sender, KeyEventArgs e)
@@ -690,20 +681,30 @@ namespace Intersect.Editor.Forms.Editors
                 mEditorItem.Spell = null;
             }
         }
+        private void chkGrappleOnMap_CheckedChanged(object sender, EventArgs e)
+        {
+            ChangeGrappleOptions(GrappleOptions.MapAttribute, chkGrappleOnMap.Checked);
+        }
+
+        private void chkGrappleOnPlayer_CheckedChanged(object sender, EventArgs e)
+        {
+            ChangeGrappleOptions(GrappleOptions.Player, chkGrappleOnPlayer.Checked);
+        }
+
+        private void chkGrappleOnNpc_CheckedChanged(object sender, EventArgs e)
+        {
+            ChangeGrappleOptions(GrappleOptions.NPC, chkGrappleOnNpc.Checked);
+        }
+
+        private void chkGrappleOnResource_CheckedChanged(object sender, EventArgs e)
+        {
+            ChangeGrappleOptions(GrappleOptions.Resource, chkGrappleOnResource.Checked);
+        }
 
         #region "Item List - Folders, Searching, Sorting, Etc"
 
         public void InitEditor()
         {
-            var selectedId = Guid.Empty;
-            var folderNodes = new Dictionary<string, TreeNode>();
-            if (lstProjectiles.SelectedNode != null && lstProjectiles.SelectedNode.Tag != null)
-            {
-                selectedId = (Guid) lstProjectiles.SelectedNode.Tag;
-            }
-
-            lstProjectiles.Nodes.Clear();
-
             //Collect folders
             var mFolders = new List<string>();
             foreach (var itm in ProjectileBase.Lookup)
@@ -725,70 +726,9 @@ namespace Intersect.Editor.Forms.Editors
             cmbFolder.Items.Add("");
             cmbFolder.Items.AddRange(mKnownFolders.ToArray());
 
-            lstProjectiles.Sorted = !btnChronological.Checked;
-
-            if (!btnChronological.Checked && !CustomSearch())
-            {
-                foreach (var folder in mFolders)
-                {
-                    var node = lstProjectiles.Nodes.Add(folder);
-                    node.ImageIndex = 0;
-                    node.SelectedImageIndex = 0;
-                    folderNodes.Add(folder, node);
-                }
-            }
-
-            foreach (var itm in ProjectileBase.ItemPairs)
-            {
-                var node = new TreeNode(itm.Value);
-                node.Tag = itm.Key;
-                node.ImageIndex = 1;
-                node.SelectedImageIndex = 1;
-
-                var folder = ProjectileBase.Get(itm.Key).Folder;
-                if (!string.IsNullOrEmpty(folder) && !btnChronological.Checked && !CustomSearch())
-                {
-                    var folderNode = folderNodes[folder];
-                    folderNode.Nodes.Add(node);
-                    if (itm.Key == selectedId)
-                    {
-                        folderNode.Expand();
-                    }
-                }
-                else
-                {
-                    lstProjectiles.Nodes.Add(node);
-                }
-
-                if (CustomSearch())
-                {
-                    if (!node.Text.ToLower().Contains(txtSearch.Text.ToLower()))
-                    {
-                        node.Remove();
-                    }
-                }
-
-                if (itm.Key == selectedId)
-                {
-                    lstProjectiles.SelectedNode = node;
-                }
-            }
-
-            var selectedNode = lstProjectiles.SelectedNode;
-
-            if (!btnChronological.Checked)
-            {
-                lstProjectiles.Sort();
-            }
-
-            lstProjectiles.SelectedNode = selectedNode;
-            foreach (var node in mExpandedFolders)
-            {
-                if (folderNodes.ContainsKey(node))
-                {
-                    folderNodes[node].Expand();
-                }
-            }
+            var items = ProjectileBase.Lookup.OrderBy(p => p.Value?.Name).Select(pair => new KeyValuePair<Guid, KeyValuePair<string, string>>(pair.Key,
+                new KeyValuePair<string, string>(((ProjectileBase)pair.Value)?.Name ?? Models.DatabaseObject<ProjectileBase>.Deleted, ((ProjectileBase)pair.Value)?.Folder ?? ""))).ToArray();
+            lstGameObjects.Repopulate(items, mFolders, btnAlphabetical.Checked, CustomSearch(), txtSearch.Text);
         }
 
         private void btnAddFolder_Click(object sender, EventArgs e)
@@ -804,73 +744,11 @@ namespace Intersect.Editor.Forms.Editors
                 if (!cmbFolder.Items.Contains(folderName))
                 {
                     mEditorItem.Folder = folderName;
-                    mExpandedFolders.Add(folderName);
+                    lstGameObjects.ExpandFolder(folderName);
                     InitEditor();
                     cmbFolder.Text = folderName;
                 }
             }
-        }
-
-        private void lstProjectiles_NodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
-        {
-            var node = e.Node;
-            if (node != null)
-            {
-                if (e.Button == MouseButtons.Right)
-                {
-                    if (e.Node.Tag != null && e.Node.Tag.GetType() == typeof(Guid))
-                    {
-                        Clipboard.SetText(e.Node.Tag.ToString());
-                    }
-                }
-
-                var hitTest = lstProjectiles.HitTest(e.Location);
-                if (hitTest.Location != TreeViewHitTestLocations.PlusMinus)
-                {
-                    if (node.Nodes.Count > 0)
-                    {
-                        if (node.IsExpanded)
-                        {
-                            node.Collapse();
-                        }
-                        else
-                        {
-                            node.Expand();
-                        }
-                    }
-                }
-
-                if (node.IsExpanded)
-                {
-                    if (!mExpandedFolders.Contains(node.Text))
-                    {
-                        mExpandedFolders.Add(node.Text);
-                    }
-                }
-                else
-                {
-                    if (mExpandedFolders.Contains(node.Text))
-                    {
-                        mExpandedFolders.Remove(node.Text);
-                    }
-                }
-            }
-        }
-
-        private void lstProjectiles_AfterSelect(object sender, TreeViewEventArgs e)
-        {
-            if (mChangingName)
-            {
-                return;
-            }
-
-            if (lstProjectiles.SelectedNode == null || lstProjectiles.SelectedNode.Tag == null)
-            {
-                return;
-            }
-
-            mEditorItem = ProjectileBase.Get((Guid) lstProjectiles.SelectedNode.Tag);
-            UpdateEditor();
         }
 
         private void cmbFolder_SelectedIndexChanged(object sender, EventArgs e)
@@ -879,9 +757,9 @@ namespace Intersect.Editor.Forms.Editors
             InitEditor();
         }
 
-        private void btnChronological_Click(object sender, EventArgs e)
+        private void btnAlphabetical_Click(object sender, EventArgs e)
         {
-            btnChronological.Checked = !btnChronological.Checked;
+            btnAlphabetical.Checked = !btnAlphabetical.Checked;
             InitEditor();
         }
 

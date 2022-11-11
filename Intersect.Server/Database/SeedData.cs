@@ -1,16 +1,14 @@
 ﻿using System.Linq;
 
-using JetBrains.Annotations;
-
 using Microsoft.EntityFrameworkCore;
 
 namespace Intersect.Server.Database
 {
 
-    public abstract class SeedData<TType> where TType : class
+    public abstract partial class SeedData<TType> where TType : class
     {
 
-        public void SeedIfEmpty([NotNull] ISeedableContext context)
+        public void SeedIfEmpty(ISeedableContext context)
         {
             var dbSet = context.GetDbSet<TType>();
 
@@ -27,7 +25,7 @@ namespace Intersect.Server.Database
             Seed(dbSet);
         }
 
-        public abstract void Seed([NotNull] DbSet<TType> dbSet);
+        public abstract void Seed(DbSet<TType> dbSet);
 
     }
 

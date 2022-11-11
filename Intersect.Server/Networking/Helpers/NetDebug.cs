@@ -8,7 +8,6 @@ using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 
 using Intersect.Logging;
 using Intersect.Server.Core;
@@ -21,7 +20,7 @@ using Newtonsoft.Json;
 namespace Intersect.Server.Networking.Helpers
 {
 
-    public static class NetDebug
+    public static partial class NetDebug
     {
 
         public static void GenerateDebugFile()
@@ -120,7 +119,6 @@ namespace Intersect.Server.Networking.Helpers
             {
                 Bootstrapper.MainThread.NextAction = () =>
                 {
-                    Clipboard.SetText(result.Result.FullUrl);
                     Console.WriteLine(Strings.NetDebug.hastebin.ToString(result.Result.FullUrl));
                 };
             }
@@ -229,7 +227,7 @@ namespace Intersect.Server.Networking.Helpers
 
     }
 
-    public class HasteBinClient
+    public partial class HasteBinClient
     {
 
         private static HttpClient _httpClient;
@@ -286,7 +284,7 @@ namespace Intersect.Server.Networking.Helpers
     }
 
     // Define other methods and classes here
-    public class HasteBinResult
+    public partial class HasteBinResult
     {
 
         public string Key { get; set; }

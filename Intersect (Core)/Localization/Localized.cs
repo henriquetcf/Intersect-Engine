@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 
 namespace Intersect.Localization
 {
 
     [Serializable]
-    public abstract class Localized
+    public abstract partial class Localized
     {
 
     }

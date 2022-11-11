@@ -1,14 +1,9 @@
-﻿using System;
-using System.Diagnostics;
-using System.Linq;
-using System.Reflection;
-using System.Threading;
-
-using Intersect.Core;
+﻿using Intersect.Core;
 using Intersect.Logging;
 using Intersect.Network;
 using Intersect.Crypto;
 using Intersect.Crypto.Formats;
+using Intersect.Server.Core.Services;
 using Intersect.Server.Database;
 using Intersect.Server.Localization;
 using Intersect.Server.Networking;
@@ -16,9 +11,24 @@ using Intersect.Server.Networking.Helpers;
 using Intersect.Server.Networking.Lidgren;
 using Intersect.Server.Web.RestApi;
 
-using JetBrains.Annotations;
-
 using Open.Nat;
+
+using System;
+using System.Diagnostics;
+using System.Linq;
+using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
+
+using Intersect.Factories;
+using Intersect.Plugins;
+using Intersect.Server.Plugins;
+using Intersect.Server.General;
+using Intersect.Logging.Output;
+using System.Collections.Immutable;
+using System.Collections.Generic;
+using Intersect.Plugins.Interfaces;
+using Intersect.Server.Database.PlayerData.Players;
 
 #if WEBSOCKETS
 using Intersect.Server.Networking.Websockets;
@@ -26,39 +36,34 @@ using Intersect.Server.Networking.Websockets;
 
 namespace Intersect.Server.Core
 {
-
-    internal sealed class ServerContext : ApplicationContext<ServerContext>
+    /// <summary>
+    /// Implements <see cref="IServerContext"/>.
+    /// </summary>
+    internal sealed partial class ServerContext : ApplicationContext<ServerContext, ServerCommandLineOptions>, IServerContext
     {
-
-        public ServerContext([NotNull] CommandLineOptions startupOptions)
+        internal ServerContext(ServerCommandLineOptions startupOptions, Logger logger, IPacketHelper packetHelper) : base(
+            startupOptions, logger, packetHelper
+        )
         {
-            StartupOptions = startupOptions;
+            // Register the factory for creating service plugin contexts
+            FactoryRegistry<IPluginContext>.RegisterFactory(new ServerPluginContext.Factory());
 
             if (startupOptions.Port > 0)
             {
                 Options.ServerPort = startupOptions.Port;
             }
 
-            ServerConsole = new ServerConsole();
-            ServerLogic = new ServerLogic();
             RestApi = new RestApi(startupOptions.ApiPort);
 
-            Network = CreateNetwork();
+            Network = CreateNetwork(packetHelper);
         }
 
-        [NotNull]
-        public CommandLineOptions StartupOptions { get; }
+        public IConsoleService ConsoleService => GetExpectedService<IConsoleService>();
 
-        [NotNull]
-        public ServerConsole ServerConsole { get; }
+        public ILogicService LogicService => GetExpectedService<ILogicService>();
 
-        [NotNull]
-        public ServerLogic ServerLogic { get; }
-
-        [NotNull]
         public ServerNetwork Network { get; }
 
-        [NotNull]
         public RestApi RestApi { get; }
 
         #region Startup
@@ -68,13 +73,6 @@ namespace Intersect.Server.Core
             try
             {
                 InternalStartNetworking();
-
-                if (!StartupOptions.DoNotShowConsole)
-                {
-                    ThreadConsole = ServerConsole.Start();
-                }
-
-                ThreadLogic = ServerLogic.Start();
             }
             catch (Exception exception)
             {
@@ -112,11 +110,47 @@ namespace Intersect.Server.Core
                 Log.Info("Disposing network..." + $" ({stopwatch.ElapsedMilliseconds}ms)");
                 Network.Dispose();
 
+                Log.Info("Saving updated server variable values");
+                DbInterface.SaveUpdatedServerVariables();
+
                 // TODO: This probably also needs to not be a global, but will require more work to clean up.
-                Log.Info("Saving player database..." + $" ({stopwatch.ElapsedMilliseconds}ms)");
-                DbInterface.SavePlayerDatabase(Environment.StackTrace);
-                Log.Info("Saving game database..." + $" ({stopwatch.ElapsedMilliseconds}ms)");
-                DbInterface.SaveGameDatabase();
+                Log.Info("Saving online users/players..." + $" ({stopwatch.ElapsedMilliseconds}ms)");
+
+                var savingTasks = new List<Task>();
+                foreach (var user in Database.PlayerData.User.OnlineList.ToArray())
+                {
+                    savingTasks.Add(Task.Run(() => user.Save()));
+                }
+
+                Task.WaitAll(savingTasks.ToArray());
+
+
+                Log.Info("Saving loaded guilds....");
+
+                savingTasks.Clear();
+                //Should we send out guild updates?
+                foreach (var guild in Guild.Guilds)
+                {
+                    savingTasks.Add(Task.Run(() => guild.Value.Save()));
+                }
+
+                Task.WaitAll(savingTasks.ToArray());
+
+                // TODO: This probably also needs to not be a global, but will require more work to clean up.
+                Log.Info("Online users/players saved." + $" ({stopwatch.ElapsedMilliseconds}ms)");
+
+
+                //Disconnect All Clients
+                //Will kill their packet handling threads so we have a clean shutdown
+                lock (Globals.ClientLock)
+                {
+                    var clients = Globals.Clients.ToArray();
+                    foreach (var client in clients)
+                    {
+                        client.Disconnect("Server Shutdown", true);
+                    }
+                }
+
 
                 // TODO: This needs to not be a global. I'm also in the middle of rewriting the API anyway.
                 Log.Info("Shutting down the API..." + $" ({stopwatch.ElapsedMilliseconds}ms)");
@@ -155,28 +189,30 @@ namespace Intersect.Server.Core
                         }
                     }
                 }
+
+                PacketHelper.HandlerRegistry.Dispose();
             }
 
             Log.Info("Base dispose." + $" ({stopwatch.ElapsedMilliseconds}ms)");
             base.Dispose(disposing);
             Log.Info("Finished disposing server context." + $" ({stopwatch.ElapsedMilliseconds}ms)");
             Console.WriteLine(Strings.Commands.exited);
+            System.Environment.Exit(-1);
         }
 
         #endregion
 
         #region Threads
 
-        private Thread ThreadConsole { get; set; }
+        private Thread ThreadConsole => ConsoleService.Thread;
 
-        private Thread ThreadLogic { get; set; }
+        private Thread ThreadLogic => LogicService.Thread;
 
         #endregion
 
         #region Network
 
-        [NotNull]
-        private ServerNetwork CreateNetwork()
+        private ServerNetwork CreateNetwork(IPacketHelper packetHelper)
         {
             ServerNetwork network;
 
@@ -193,14 +229,14 @@ namespace Intersect.Server.Core
             {
                 var rsaKey = EncryptionKey.FromStream<RsaKey>(stream ?? throw new InvalidOperationException());
                 Debug.Assert(rsaKey != null, "rsaKey != null");
-                network = new ServerNetwork(new NetworkConfiguration(Options.ServerPort), rsaKey.Parameters);
+                network = new ServerNetwork(this, packetHelper, new NetworkConfiguration(Options.ServerPort), rsaKey.Parameters);
             }
 
             #endregion
 
             #region Configure Packet Handlers
 
-            var packetHandler = new PacketHandler();
+            var packetHandler = new PacketHandler(this, packetHelper.HandlerRegistry);
             network.Handler = packetHandler.HandlePacket;
             network.PreProcessHandler = packetHandler.PreProcessPacket;
 
@@ -232,7 +268,7 @@ namespace Intersect.Server.Core
 
             RestApi.Start();
 
-            if (!Options.UPnP || ServerContext.Instance.StartupOptions.NoNatPunchthrough)
+            if (!Options.UPnP || Instance.StartupOptions.NoNatPunchthrough)
             {
                 return;
             }
@@ -254,12 +290,27 @@ namespace Intersect.Server.Core
             Console.WriteLine();
 
             Bootstrapper.CheckNetwork();
+
+            Console.WriteLine();
         }
 
         #endregion
 
         #endregion
 
-    }
+        #region Exception Handling
 
+        protected override void NotifyNonTerminatingExceptionOccurred() =>
+            Console.WriteLine(Strings.Errors.errorlogged);
+
+        internal static void DispatchUnhandledException(Exception exception, bool isTerminating = true)
+        {
+            var sender = Thread.CurrentThread;
+            Task.Factory.StartNew(
+                () => HandleUnhandledException(sender, new UnhandledExceptionEventArgs(exception, isTerminating))
+            );
+        }
+
+        #endregion Exception Handling
+    }
 }

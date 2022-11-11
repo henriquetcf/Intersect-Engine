@@ -6,12 +6,10 @@ using Intersect.Server.Core.CommandParsing.Arguments;
 using Intersect.Server.Core.ExperimentalFeatures;
 using Intersect.Server.Localization;
 
-using JetBrains.Annotations;
-
 namespace Intersect.Server.Core.Commands
 {
 
-    internal class ExperimentsCommand : TargettedCommand<IExperimentalFlag>
+    internal partial class ExperimentsCommand : TargettedCommand<IExperimentalFlag>
     {
 
         public ExperimentsCommand() : base(
@@ -21,7 +19,6 @@ namespace Intersect.Server.Core.Commands
         {
         }
 
-        [NotNull]
         private VariableArgument<bool> Enablement => FindArgumentOrThrow<VariableArgument<bool>>();
 
         protected override IExperimentalFlag FindTarget(ServerContext context, ParserResult result, string targetName)

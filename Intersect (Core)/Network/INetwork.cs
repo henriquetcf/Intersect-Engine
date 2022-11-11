@@ -1,7 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using Intersect.Plugins.Interfaces;
 
-using JetBrains.Annotations;
+using System;
+using System.Collections.Generic;
 
 namespace Intersect.Network
 {
@@ -9,8 +9,9 @@ namespace Intersect.Network
     public interface INetwork : IDisposable
     {
 
-        [NotNull]
         NetworkConfiguration Configuration { get; }
+
+        IPacketHelper Helper { get; }
 
         Guid Guid { get; }
 
@@ -26,15 +27,15 @@ namespace Intersect.Network
 
         bool Disconnect(ICollection<IConnection> connections, string message = "");
 
-        bool Send(IPacket packet);
+        bool Send(IPacket packet, TransmissionMode mode = TransmissionMode.All);
 
-        bool Send(Guid guid, IPacket packet);
+        bool Send(Guid guid, IPacket packet, TransmissionMode mode = TransmissionMode.All);
 
-        bool Send(IConnection connection, IPacket packet);
+        bool Send(IConnection connection, IPacket packet, TransmissionMode mode = TransmissionMode.All);
 
-        bool Send(ICollection<Guid> guids, IPacket packet);
+        bool Send(ICollection<Guid> guids, IPacket packet, TransmissionMode mode = TransmissionMode.All);
 
-        bool Send(ICollection<IConnection> connections, IPacket packet);
+        bool Send(ICollection<IConnection> connections, IPacket packet, TransmissionMode mode = TransmissionMode.All);
 
         bool AddConnection(IConnection connection);
 

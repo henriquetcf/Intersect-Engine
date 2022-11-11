@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 using Intersect.Client.Framework.GenericClasses;
 using Intersect.Client.Framework.Gwen.Input;
@@ -11,7 +11,7 @@ namespace Intersect.Client.Framework.Gwen.Control
     /// <summary>
     ///     Text box (editable).
     /// </summary>
-    public class TextBox : Label
+    public partial class TextBox : Label
     {
 
         //Sound Effects
@@ -25,7 +25,7 @@ namespace Intersect.Client.Framework.Gwen.Control
 
         protected float mLastInputTime;
 
-        private int mMaxTextLength = -1;
+        private int mMaxmimumLength = -1;
 
         private string mRemoveTextSound;
 
@@ -127,6 +127,8 @@ namespace Intersect.Client.Framework.Gwen.Control
             }
         }
 
+        public int MaximumLength { get => mMaxmimumLength; set => mMaxmimumLength = value; }
+
         /// <summary>
         ///     Invoked when the text has changed.
         /// </summary>
@@ -145,12 +147,7 @@ namespace Intersect.Client.Framework.Gwen.Control
         /// <returns>True if allowed.</returns>
         protected virtual bool IsTextAllowed(string text, int position)
         {
-            if (mMaxTextLength >= 0 && this.Text.Length + text.Length > mMaxTextLength)
-            {
-                return false;
-            }
-
-            return true;
+            return MaximumLength < 0 || Text.Length + (text?.Length ?? 0) <= MaximumLength;
         }
 
         /// <summary>
@@ -212,33 +209,16 @@ namespace Intersect.Client.Framework.Gwen.Control
         /// <param name="text">Text to insert.</param>
         protected virtual void InsertText(string text)
         {
-            // TODO: Make sure fits (implement maxlength)
-
-            if (HasSelection)
-            {
-                EraseSelection(false);
-            }
-
-            if (mCursorPos > TextLength)
-            {
-                mCursorPos = TextLength;
-            }
-
-            if (!IsTextAllowed(text, mCursorPos))
-            {
-                return;
-            }
-
-            var str = Text;
-            str = str.Insert(mCursorPos, text);
-            SetText(str);
-
-            mCursorPos += text.Length;
-            mCursorEnd = mCursorPos;
-
-            RefreshCursorBounds();
-
+            ReplaceSelection(text);
             base.PlaySound(mAddTextSound);
+        }
+
+        private void ValidateCursor()
+        {
+            var start = Math.Min(mCursorPos, mCursorEnd);
+            var end = Math.Max(mCursorPos, mCursorEnd);
+            mCursorPos = Math.Min(start, TextLength);
+            mCursorEnd = Math.Min(end, TextLength);
         }
 
         /// <summary>
@@ -592,23 +572,77 @@ namespace Intersect.Client.Framework.Gwen.Control
         /// </summary>
         /// <param name="startPos">Starting cursor position.</param>
         /// <param name="length">Length in characters.</param>
-        public virtual void DeleteText(int startPos, int length, bool playSound = true)
+        public virtual void DeleteText(int startPos, int length, bool playSound = true) => ReplaceText(startPos, length, string.Empty, playSound);
+
+        public virtual void ReplaceText(int startPos, int length, string replacement, bool playSound = true)
         {
             var str = Text;
             str = str.Remove(startPos, length);
+            str = str.Insert(startPos, replacement ?? string.Empty);
             SetText(str);
 
             if (mCursorPos > startPos)
             {
-                CursorPos = mCursorPos - length;
+                CursorPos = mCursorPos + (replacement?.Length ?? 0) - length;
             }
 
             CursorEnd = mCursorPos;
 
             if (length > 0 && playSound)
             {
-                base.PlaySound(mRemoveTextSound);
+                PlaySound(mRemoveTextSound);
             }
+        }
+
+        public virtual void ReplaceSelection(string replacement, bool playSound = true)
+        {
+            ValidateCursor();
+
+            var start = Math.Min(mCursorPos, mCursorEnd);
+            
+            if (Text.Length > 0 && start < 0)
+            {
+                // Make sure that start is not more negative than the text length
+                start = Math.Max(-Text.Length, start);
+
+                // Treat the negative start as an offset from the end
+                start += Text.Length;
+            }
+
+            // Bound the end to no earlier than the start
+            var end = Math.Max(start, Math.Max(mCursorPos, mCursorEnd));
+
+            // How much text are we deleting?
+            var deletionLength = end - start;
+
+            // How long is the remaining text going to be after deletion?
+            var textLength = Text.Length - deletionLength;
+
+            // What is the string length limit (below 0 maximum length is "unlimited")
+            var maximumLength = MaximumLength < 0 ? int.MaxValue : MaximumLength;
+
+            // How much text can we insert before reaching the maximum length?
+            var maximumReplacementLength = maximumLength - textLength;
+
+            // This number should never be less than 0
+            maximumReplacementLength = Math.Max(0, maximumReplacementLength);
+
+            // How long is the text we are inserting in place of the selection?
+            var replacementLength = replacement?.Length ?? 0;
+            
+            // Bound it to the limit
+            replacementLength = Math.Min(replacementLength, maximumReplacementLength);
+
+            // Get the replacement substring
+            var actualReplacement = replacement.Substring(0, replacementLength);
+
+            ReplaceText(start, deletionLength, actualReplacement, playSound);
+
+            // Move the cursor, reset to 0 length cursor
+            mCursorPos += replacementLength;
+            mCursorEnd = mCursorPos;
+
+            RefreshCursorBounds();
         }
 
         /// <summary>
@@ -743,7 +777,7 @@ namespace Intersect.Client.Framework.Gwen.Control
 
         public void SetMaxLength(int val)
         {
-            mMaxTextLength = val;
+            MaximumLength = val;
         }
 
         public override JObject GetJson()

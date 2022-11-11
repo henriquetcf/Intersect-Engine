@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -8,10 +8,8 @@ using Intersect.Client.Framework.File_Management;
 using Intersect.Client.Framework.GenericClasses;
 using Intersect.Client.Framework.Graphics;
 using Intersect.Client.General;
-using Intersect.Client.Interface;
 using Intersect.Client.Localization;
-
-using JetBrains.Annotations;
+using Intersect.Utilities;
 
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
@@ -19,14 +17,15 @@ using Microsoft.Xna.Framework.Graphics;
 
 using XNARectangle = Microsoft.Xna.Framework.Rectangle;
 using XNAColor = Microsoft.Xna.Framework.Color;
+using System.Globalization;
 
 namespace Intersect.Client.MonoGame.Graphics
 {
 
-    public class MonoRenderer : GameRenderer
+    public partial class MonoRenderer : GameRenderer
     {
 
-        [NotNull] private readonly List<MonoTexture> mAllTextures = new List<MonoTexture>();
+        private readonly List<MonoTexture> mAllTextures = new List<MonoTexture>();
 
         private BasicEffect mBasicEffect;
 
@@ -60,7 +59,7 @@ namespace Intersect.Client.MonoGame.Graphics
 
         private Game mGame;
 
-        [NotNull] private GameWindow mGameWindow;
+        private GameWindow mGameWindow;
 
         private GraphicsDeviceManager mGraphics;
 
@@ -92,7 +91,7 @@ namespace Intersect.Client.MonoGame.Graphics
 
         private GameRenderTexture mWhiteTexture;
 
-        public MonoRenderer(GraphicsDeviceManager graphics, ContentManager contentManager, [NotNull] Game monoGame)
+        public MonoRenderer(GraphicsDeviceManager graphics, ContentManager contentManager, Game monoGame)
         {
             mGame = monoGame;
             mGraphics = graphics;
@@ -103,7 +102,9 @@ namespace Intersect.Client.MonoGame.Graphics
                 ColorSourceBlend = Blend.SourceAlpha,
                 AlphaSourceBlend = Blend.One,
                 ColorDestinationBlend = Blend.InverseSourceAlpha,
-                AlphaDestinationBlend = Blend.InverseSourceAlpha
+                AlphaDestinationBlend = Blend.One,
+                ColorBlendFunction = BlendFunction.Add,
+                AlphaBlendFunction = BlendFunction.Add,
             };
 
             mMultiplyState = new BlendState()
@@ -203,7 +204,7 @@ namespace Intersect.Client.MonoGame.Graphics
             mOldDisplayMode = currentDisplayMode;
             if (fsChanged)
             {
-                mFsChangedTimer = Globals.System.GetTimeMs() + 1000;
+                mFsChangedTimer = Timing.Global.Milliseconds + 1000;
             }
 
             if (fsChanged)
@@ -223,7 +224,7 @@ namespace Intersect.Client.MonoGame.Graphics
         public override bool Begin()
         {
             //mGraphicsDevice.SetRenderTarget(null);
-            if (mFsChangedTimer > -1 && mFsChangedTimer < Globals.System.GetTimeMs())
+            if (mFsChangedTimer > -1 && mFsChangedTimer < Timing.Global.Milliseconds)
             {
                 mGraphics.PreferredBackBufferWidth--;
                 mGraphics.ApplyChanges();
@@ -305,22 +306,27 @@ namespace Intersect.Client.MonoGame.Graphics
                         blend = mNormalState;
 
                         break;
+
                     case GameBlendModes.Alpha:
                         blend = BlendState.AlphaBlend;
 
                         break;
+
                     case GameBlendModes.Multiply:
                         blend = mMultiplyState;
 
                         break;
+
                     case GameBlendModes.Add:
                         blend = BlendState.Additive;
 
                         break;
+
                     case GameBlendModes.Opaque:
                         blend = BlendState.Opaque;
 
                         break;
+
                     case GameBlendModes.Cutout:
                         blend = mCutoutState;
 
@@ -688,11 +694,11 @@ namespace Intersect.Client.MonoGame.Graphics
         {
             EndSpriteBatch();
             mFpsCount++;
-            if (mFpsTimer < Globals.System.GetTimeMs())
+            if (mFpsTimer < Timing.Global.Milliseconds)
             {
                 mFps = mFpsCount;
                 mFpsCount = 0;
-                mFpsTimer = Globals.System.GetTimeMs() + 1000;
+                mFpsTimer = Timing.Global.Milliseconds + 1000;
                 mGameWindow.Title = Strings.Main.gamename;
             }
 
@@ -785,23 +791,25 @@ namespace Intersect.Client.MonoGame.Graphics
 
             var database = Globals.Database;
             var validVideoModes = GetValidVideoModes();
-            var targetResolution = database.TargetResolution;
+            var targetResolution = Intersect.Utilities.MathHelper.Clamp(database.TargetResolution, 0, validVideoModes?.Count ?? 0);
 
-            if (targetResolution < 0 || validVideoModes?.Count <= targetResolution)
+            if (targetResolution != database.TargetResolution)
             {
                 Debug.Assert(database != null, "database != null");
                 database.TargetResolution = 0;
-                database.SavePreference("Resolution", database.TargetResolution.ToString());
+                database.SavePreference("Resolution", database.TargetResolution.ToString(CultureInfo.InvariantCulture));
             }
 
             var targetVideoMode = validVideoModes?[targetResolution];
-            var resolution = Resolution.Parse(targetVideoMode);
-            mGraphics.PreferredBackBufferWidth = resolution.X;
-            mGraphics.PreferredBackBufferHeight = resolution.Y;
+            if (Resolution.TryParse(targetVideoMode, out var resolution))
+            {
+                PreferredResolution = resolution;
+            }
 
-            UpdateGraphicsState(
-                mGraphics?.PreferredBackBufferWidth ?? 800, mGraphics?.PreferredBackBufferHeight ?? 600, true
-            );
+            mGraphics.PreferredBackBufferWidth = PreferredResolution.X;
+            mGraphics.PreferredBackBufferHeight = PreferredResolution.Y;
+
+            UpdateGraphicsState(ActiveResolution.X, ActiveResolution.Y, true);
 
             if (mWhiteTexture == null)
             {
@@ -871,6 +879,10 @@ namespace Intersect.Client.MonoGame.Graphics
             return tex;
         }
 
+        /// <inheritdoc />
+        public override GameTexture LoadTexture(string assetName, Func<Stream> createStream) =>
+            new MonoTexture(mGraphicsDevice, assetName, createStream);
+
         public override Pointf MeasureText(string text, GameFont gameFont, float fontScale)
         {
             if (gameFont == null)
@@ -901,8 +913,7 @@ namespace Intersect.Client.MonoGame.Graphics
         {
             mCurrentView = view;
 
-            Matrix projection;
-            Matrix.CreateOrthographicOffCenter(0, view.Width, view.Height, 0, 0f, -1, out projection);
+            Matrix.CreateOrthographicOffCenter(0, view.Width, view.Height, 0, 0f, -1, out var projection);
             projection.M41 += -0.5f * projection.M11;
             projection.M42 += -0.5f * projection.M22;
             mBasicEffect.Projection = projection;

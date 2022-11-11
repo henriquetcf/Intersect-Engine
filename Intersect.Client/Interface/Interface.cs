@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 
 using Intersect.Client.Core;
@@ -12,18 +12,17 @@ using Intersect.Client.General;
 using Intersect.Client.Interface.Game;
 using Intersect.Client.Interface.Menu;
 using Intersect.Client.Interface.Shared.Errors;
-
-using JetBrains.Annotations;
+using Intersect.Configuration;
 
 using Base = Intersect.Client.Framework.Gwen.Renderer.Base;
 
 namespace Intersect.Client.Interface
 {
 
-    public static class Interface
+    public static partial class Interface
     {
 
-        [NotNull] public static readonly List<KeyValuePair<string, string>> MsgboxErrors =
+        public static readonly List<KeyValuePair<string, string>> MsgboxErrors =
             new List<KeyValuePair<string, string>>();
 
         public static ErrorHandler ErrorMsgHandler;
@@ -43,9 +42,11 @@ namespace Intersect.Client.Interface
 
         public static bool SetupHandlers { get; set; }
 
-        public static GameInterface GameUi { get; set; }
+        public static GameInterface GameUi { get; private set; }
 
-        public static MenuGuiBase MenuUi { get; set; }
+        public static MenuGuiBase MenuUi { get; private set; }
+
+        public static MutableInterface CurrentInterface => GameUi as MutableInterface ?? MenuUi?.MainMenu;
 
         public static TexturedBase Skin { get; set; }
 
@@ -59,27 +60,19 @@ namespace Intersect.Client.Interface
         //Gwen Low Level Functions
         public static void InitGwen()
         {
+            // Preserve the debug window
+            MutableInterface.DetachDebugWindow();
+
             //TODO: Make it easier to modify skin.
             if (Skin == null)
             {
-                Skin = new TexturedBase(
-                    GwenRenderer,
-                    Globals.ContentManager.GetTexture(GameContentManager.TextureType.Gui, "defaultskin.png")
-                )
-                {
-                    DefaultFont = Graphics.UIFont
-                };
+                Skin = TexturedBase.FindSkin(GwenRenderer, Globals.ContentManager, ClientConfiguration.Instance.UiSkin);
+                Skin.DefaultFont = Graphics.UIFont;
             }
 
-            if (MenuUi != null)
-            {
-                MenuUi.Dispose();
-            }
+            MenuUi?.Dispose();
 
-            if (GameUi != null)
-            {
-                GameUi.Dispose();
-            }
+            GameUi?.Dispose();
 
             // Create a Canvas (it's root, on which all other GWEN controls are created)
             sMenuCanvas = new Canvas(Skin, "MainMenu")
@@ -134,16 +127,35 @@ namespace Intersect.Client.Interface
                 MenuUi = null;
             }
 
+            Globals.OnLifecycleChangeState();
+
             GwenInitialized = true;
         }
 
-        public static void DestroyGwen()
+        public static void DestroyGwen(bool exiting = false)
         {
+            // Preserve the debug window
+            MutableInterface.DetachDebugWindow();
+
             //The canvases dispose of all of their children.
             sMenuCanvas?.Dispose();
             sGameCanvas?.Dispose();
             GameUi?.Dispose();
+
+            // Destroy our target UI as well! Above code does NOT appear to clear this properly.
+            if (Globals.Me != null)
+            {
+                Globals.Me.ClearTarget();
+                Globals.Me.TargetBox?.Dispose();
+                Globals.Me.TargetBox = null;
+            }
+
             GwenInitialized = false;
+
+            if (exiting)
+            {
+                MutableInterface.DisposeDebugWindow();
+            }
         }
 
         public static bool HasInputFocus()
@@ -153,7 +165,7 @@ namespace Intersect.Client.Interface
                 return false;
             }
 
-            return FocusElements.Any(t => t?.HasFocus ?? false) || InputBlockingElements.Any(t => t?.IsHidden == false);
+            return FocusElements.Any(t => t.MouseInputEnabled && (t?.HasFocus ?? false)) || InputBlockingElements.Any(t => t?.IsHidden == false);
         }
 
         #endregion
@@ -168,16 +180,41 @@ namespace Intersect.Client.Interface
                 InitGwen();
             }
 
+            if (Globals.GameState == GameStates.Menu)
+            {
+                MenuUi.Update();
+            }
+            else if (Globals.GameState == GameStates.InGame)
+            {
+                GameUi.Update();
+            }
+
+            //Do not allow hiding of UI under several conditions
+            var forceShowUi = Globals.InCraft || Globals.InBank || Globals.InShop || Globals.InTrade || Globals.InBag || Globals.EventDialogs?.Count > 0 || HasInputFocus() || (!Interface.GameUi?.EscapeMenu?.IsHidden ?? true);
+
             ErrorMsgHandler.Update();
             sGameCanvas.RestrictToParent = false;
             if (Globals.GameState == GameStates.Menu)
             {
                 MenuUi.Draw();
             }
-            else if (Globals.GameState == GameStates.InGame &&
-                     ((!Interface.GameUi?.EscapeMenu?.IsHidden ?? true) || !HideUi))
+            else if (Globals.GameState == GameStates.InGame)
             {
-                GameUi.Draw();
+                if (HideUi && !forceShowUi)
+                {
+                    if (sGameCanvas.IsVisible)
+                    {
+                        sGameCanvas.Hide();
+                    }
+                }
+                else
+                {
+                    if (!sGameCanvas.IsVisible)
+                    {
+                        sGameCanvas.Show();
+                    }
+                    GameUi.Draw();
+                }
             }
         }
 
@@ -203,6 +240,19 @@ namespace Intersect.Client.Interface
         {
             if (obj.IsHidden == true)
             {
+                return false;
+            }
+            else if (!obj.MouseInputEnabled)
+            {
+                // Check if we're hitting a child element.
+                for (var i = 0; i < obj.Children.Count; i++)
+                {
+                    if (MouseHitBase(obj.Children[i]))
+                    {
+                        return true;
+                    }
+                }
+
                 return false;
             }
             else
@@ -288,6 +338,23 @@ namespace Intersect.Client.Interface
 
         #endregion
 
+        public static Framework.Gwen.Control.Base FindControlAtCursor()
+        {
+            var currentElement = CurrentInterface?.Root;
+            var cursor = new Point(InputHandler.MousePosition.X, InputHandler.MousePosition.Y);
+
+            while (default != currentElement)
+            {
+                var elementAt = currentElement.GetControlAt(cursor);
+                if (elementAt == currentElement || elementAt == default)
+                {
+                    break;
     }
 
+                currentElement = elementAt;
+            }
+
+            return currentElement;
+        }
+    }
 }

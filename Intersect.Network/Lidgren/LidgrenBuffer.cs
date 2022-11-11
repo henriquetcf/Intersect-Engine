@@ -8,7 +8,7 @@ using Lidgren.Network;
 namespace Intersect.Network.Lidgren
 {
 
-    public class LidgrenBuffer : IBuffer
+    public partial class LidgrenBuffer : IBuffer
     {
 
         public LidgrenBuffer(NetBuffer buffer)
@@ -30,7 +30,7 @@ namespace Intersect.Network.Lidgren
 
         public byte[] ToBytes()
         {
-            return Buffer?.Data;
+            return Buffer?.ReadBytes((int)Length);
         }
 
         public bool Has(long bytes)
@@ -268,7 +268,7 @@ namespace Intersect.Network.Lidgren
             if (nullTerminated)
             {
                 var position = Buffer?.PositionInBytes ?? int.MaxValue;
-                var buffer = Buffer?.PeekDataBuffer() ?? new byte[0];
+                var buffer = Buffer?.PeekDataBuffer() ?? Array.Empty<byte>();
                 while (Buffer?.LengthBytes - position > 0)
                 {
                     if (buffer[position] == 0)

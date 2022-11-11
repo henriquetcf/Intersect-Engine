@@ -1,20 +1,27 @@
-﻿using System;
+﻿using MessagePack;
+using System;
+using System.Collections.Generic;
 
 namespace Intersect.Network.Packets.Server
 {
-
-    public class ProjectileDeadPacket : CerasPacket
+    [MessagePackObject]
+    public partial class ProjectileDeadPacket : IntersectPacket
     {
-
-        public ProjectileDeadPacket(Guid projectileId, int spawnId)
+        //Parameterless Constructor for MessagePack
+        public ProjectileDeadPacket()
         {
-            ProjectileId = projectileId;
-            SpawnId = spawnId;
         }
 
-        public Guid ProjectileId { get; set; }
+        public ProjectileDeadPacket(Guid[] projectileDeaths, KeyValuePair<Guid, int>[] spawnIndices)
+        {
+            ProjectileDeaths = projectileDeaths;
+            SpawnDeaths = spawnIndices;
+        }
 
-        public int SpawnId { get; set; }
+        [Key(0)]
+        public Guid[] ProjectileDeaths { get; set; }
+        [Key(1)]
+        public KeyValuePair<Guid, int>[] SpawnDeaths { get; set; }
 
     }
 

@@ -19,12 +19,17 @@ namespace Intersect.Enums
 
         PlayerVariable = 0,
 
-        ServerVariable
+        ServerVariable,
+
+        GuildVariable,
+
+        UserVariable,
 
     }
 
     //Should properly seperate static value, player & global vars into a seperate enum.
     //But technical debt :/
+    //Crying as I add in Guild variables.. don't hate me :(
     public enum VariableMods
     {
 
@@ -74,7 +79,35 @@ namespace Intersect.Enums
 
         RightShiftPlayerVar,
 
-        RightShiftGlobalVar
+        RightShiftGlobalVar,
+
+        DupGuildVar,
+
+        AddGuildVar,
+        
+        SubtractGuildVar,
+        
+        MultiplyGuildVar,
+        
+        DivideGuildVar,
+        
+        LeftShiftGuildVar, 
+        
+        RightShiftGuildVar,
+
+        DuplicateUserVariable,
+
+        AddUserVariable,
+
+        SubtractUserVariable,
+
+        MultiplyUserVariable,
+
+        DivideUserVariable,
+
+        LeftShiftUserVariable,
+
+        RightShiftUserVariable,
     }
 
     public enum VariableComparators

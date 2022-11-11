@@ -1,12 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Intersect.Config
+﻿namespace Intersect.Config
 {
-    public class PartyOptions
+    public partial class PartyOptions
     {
         
         /// <summary>
@@ -14,11 +8,15 @@ namespace Intersect.Config
         /// </summary>
         public int MaximumMembers = 4;
 
-        public int InviteRange = 40;
-
         public int SharedXpRange = 40;
 
         public int NpcDeathCommonEventStartRange = 0;
+
+        /// <summary>
+        /// It will determine if you will have an XP bonus for each member, Eg 10, will give 10% more to the monster's total XP, then split equally to all members.
+        /// A monster that would give 100 XP, now gives 120, getting 60 for each member, when 2 in the party.
+        /// </summary>
+        public float BonusExperiencePercentPerMember = 0;
 
     }
 }

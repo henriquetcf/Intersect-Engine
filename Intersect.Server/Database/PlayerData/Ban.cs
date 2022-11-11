@@ -2,11 +2,9 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
-
+using Intersect.Logging;
 using Intersect.Server.Localization;
 using Intersect.Server.Networking;
-
-using JetBrains.Annotations;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -17,7 +15,7 @@ using Newtonsoft.Json;
 
 namespace Intersect.Server.Database.PlayerData
 {
-    public class Ban
+    public partial class Ban
     {
         public Ban() { }
 
@@ -68,127 +66,140 @@ namespace Intersect.Server.Database.PlayerData
 
         public static bool Expired(Ban ban) => ban.EndTime <= DateTime.UtcNow;
 
-        public static bool Add([NotNull] Ban ban, [CanBeNull] PlayerContext playerContext = null)
+        public static bool Add(Ban ban)
         {
-            lock (DbInterface.GetPlayerContextLock())
+            if (ban == null || ban.User == null && ban.UserId == Guid.Empty)
             {
-                var context = DbInterface.GetPlayerContext();
-                if (context == null)
+                return false;
+            }
+
+            try
+            {
+                using (var context = DbInterface.CreatePlayerContext(readOnly: false))
                 {
-                    return false;
+                    context.Entry(ban).State = EntityState.Added;
+                    context.SaveChanges();
                 }
-
-                if (ban.User == null && ban.UserId == Guid.Empty)
-                {
-                    return false;
-                }
-
-                context.Bans.Add(ban);
-                DbInterface.SavePlayerDatabaseAsync();
-
                 return true;
             }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to add ban for user " + ban.User?.Name);
+                //ServerContext.DispatchUnhandledException(new Exception("Failed to save user, shutting down to prevent rollbacks!"), true);
+            }
+            return false;
         }
 
         public static bool Add(
             Guid userId,
             int duration,
-            [NotNull] string reason,
-            [NotNull] string banner,
-            string ip,
-            [CanBeNull] PlayerContext playerContext = null
+            string reason,
+            string banner,
+            string ip
         ) =>
-            Add(new Ban(userId, ip, reason, duration, banner), playerContext);
+            Add(new Ban(userId, ip, reason, duration, banner));
 
         public static bool Add(
-            [NotNull] User user,
+            User user,
             int duration,
-            [NotNull] string reason,
-            [NotNull] string banner,
-            string ip,
-            [CanBeNull] PlayerContext playerContext = null
+            string reason,
+            string banner,
+            string ip
         ) =>
-            Add(new Ban(user, ip, reason, duration, banner), playerContext);
+            Add(new Ban(user, ip, reason, duration, banner));
 
         public static bool Add(
-            [NotNull] Client client,
+            Client client,
             int duration,
-            [NotNull] string reason,
-            [NotNull] string banner,
-            string ip,
-            [CanBeNull] PlayerContext playerContext = null
+            string reason,
+            string banner,
+            string ip
         ) =>
-            client.User != null && Add(client.User, duration, reason, banner, ip, playerContext);
+            client.User != null && Add(client.User, duration, reason, banner, ip);
 
         public static bool Remove(Ban ban)
         {
-            lock (DbInterface.GetPlayerContextLock())
+            if (ban == null || ban.User == null && ban.UserId == Guid.Empty)
             {
-                var context = DbInterface.GetPlayerContext();
-                if (context == null)
+                return false;
+            }
+
+            try
+            {
+                using (var context = DbInterface.CreatePlayerContext(readOnly: false))
                 {
-                    return false;
+                    context.Entry(ban).State = EntityState.Deleted;
+                    context.SaveChanges();
                 }
-
-                context.Bans.Remove(ban);
-
-                DbInterface.SavePlayerDatabaseAsync();
-
                 return true;
             }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to remove ban " + ban?.Id);
+                //ServerContext.DispatchUnhandledException(new Exception("Failed to save user, shutting down to prevent rollbacks!"), true);
+            }
+            return false;
         }
 
         public static bool Remove(string ip, bool expired = true)
         {
-            lock (DbInterface.GetPlayerContextLock())
+            try
             {
-                var context = DbInterface.GetPlayerContext();
-                if (context == null)
+                using (var context = DbInterface.CreatePlayerContext(readOnly: false))
                 {
-                    return false;
+                    var bans = context.Bans.Where(e => e.Ip == ip && (!expired || Expired(e))).ToList();
+
+                    if ((bans?.Count ?? 0) == 0)
+                    {
+                        return true;
+                    }
+
+                    foreach (var ban in bans)
+                    {
+                        context.Entry(ban).State = EntityState.Deleted;
+                    }
+                    context.SaveChanges();
                 }
-
-                var bans = context.Bans.Where(e => e.Ip == ip && (!expired || Expired(e))).ToList();
-
-                if ((bans?.Count ?? 0) == 0)
-                {
-                    return true;
-                }
-
-                context.Bans.RemoveRange(bans);
-
-                DbInterface.SavePlayerDatabaseAsync();
-
                 return true;
             }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to remove bans for ip " + ip);
+                //ServerContext.DispatchUnhandledException(new Exception("Failed to save user, shutting down to prevent rollbacks!"), true);
+            }
+            return false;
         }
 
         public static bool Remove(Guid userId, bool expired = true)
         {
-            lock (DbInterface.GetPlayerContextLock())
+            try
             {
-                var context = DbInterface.GetPlayerContext();
-                if (context == null)
+                using (var context = DbInterface.CreatePlayerContext(readOnly: false))
                 {
-                    return false;
+                    var bans = context.Bans.Where(e => e.UserId == userId && (!expired || Expired(e))).ToList();
+
+                    if ((bans?.Count ?? 0) == 0)
+                    {
+                        return true;
+                    }
+
+                    foreach (var ban in bans)
+                    {
+                        context.Entry(ban).State = EntityState.Deleted;
+                    }
+                    context.SaveChanges();
                 }
-
-                var bans = context.Bans.Where(e => e.UserId == userId && (!expired || Expired(e))).ToList();
-
-                if ((bans?.Count ?? 0) == 0)
-                {
-                    return true;
-                }
-
-                context.Bans.RemoveRange(bans);
-
-                DbInterface.SavePlayerDatabaseAsync();
-
                 return true;
             }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to remove bans for user with id " + userId);
+                //ServerContext.DispatchUnhandledException(new Exception("Failed to save user, shutting down to prevent rollbacks!"), true);
+            }
+            return false;
         }
 
-        public static bool Remove([NotNull] User user, [CanBeNull] PlayerContext playerContext = null)
+        public static bool Remove(User user)
         {
             if (!Remove(user.Ban))
             {
@@ -200,8 +211,7 @@ namespace Intersect.Server.Database.PlayerData
             return true;
         }
 
-        public static bool Remove([NotNull] Client client, [CanBeNull] PlayerContext playerContext = null) =>
-            client.User != null && Remove(client.User, playerContext);
+        public static bool Remove(Client client) => client.User != null && Remove(client.User);
 
         public static string CheckBan(User user, string ip)
         {
@@ -233,13 +243,21 @@ namespace Intersect.Server.Database.PlayerData
 
         public static string CheckBan(string ip) => CheckBan(null, ip);
 
-        public static Ban Find([NotNull] User user) => Find(user.Id);
+        public static Ban Find(User user) => Find(user.Id);
 
         public static Ban Find(Guid userId)
         {
-            lock (DbInterface.GetPlayerContextLock())
+            try
             {
-                return ByUser(DbInterface.GetPlayerContext(), userId)?.FirstOrDefault();
+                using (var context = DbInterface.CreatePlayerContext())
+                {
+                    return ByUser(context, userId)?.FirstOrDefault();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex);
+                return null;
             }
         }
 
@@ -250,32 +268,32 @@ namespace Intersect.Server.Database.PlayerData
                 return null;
             }
 
-            lock (DbInterface.GetPlayerContextLock())
+            try
             {
-                return ByIp(DbInterface.GetPlayerContext(), ip)?.FirstOrDefault();
+                using (var context = DbInterface.CreatePlayerContext())
+                {
+                    return ByIp(context, ip)?.FirstOrDefault();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex);
+                return null;
             }
         }
 
-        public static IEnumerable<Ban> FindAll([NotNull] User user) => ByUser(DbInterface.GetPlayerContext(), user.Id);
-
-        public static IEnumerable<Ban> FindAll(Guid userId) => ByUser(DbInterface.GetPlayerContext(), userId);
-
-        public static IEnumerable<Ban> FindAll(string ip) => ByIp(DbInterface.GetPlayerContext(), ip);
-
         #region Compiled Queries
 
-        [NotNull]
         private static readonly Func<PlayerContext, Guid, IEnumerable<Ban>> ByUser =
             EF.CompileQuery<PlayerContext, Guid, Ban>(
                 (context, userId) => context.Bans.Where(ban => ban.UserId == userId && ban.EndTime > DateTime.UtcNow)
             ) ??
             throw new InvalidOperationException();
 
-        [NotNull]
         private static readonly Func<PlayerContext, string, IEnumerable<Ban>> ByIp =
             EF.CompileQuery<PlayerContext, string, Ban>(
                 (context, ip) => context.Bans.Where(
-                    ban => string.Equals(ban.Ip, ip, StringComparison.OrdinalIgnoreCase) &&
+                    ban => ban.Ip == ip &&
                            ban.EndTime > DateTime.UtcNow
                 )
             ) ??

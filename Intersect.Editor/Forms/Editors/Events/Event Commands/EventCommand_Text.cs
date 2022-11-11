@@ -26,16 +26,9 @@ namespace Intersect.Editor.Forms.Editors.Events.Event_Commands
             InitLocalization();
             txtShowText.Text = mMyCommand.Text;
             cmbFace.Items.Clear();
-            cmbFace.Items.Add(Strings.General.none);
+            cmbFace.Items.Add(Strings.General.None);
             cmbFace.Items.AddRange(GameContentManager.GetSmartSortedTextureNames(GameContentManager.TextureType.Face));
-            if (cmbFace.Items.IndexOf(TextUtils.NullToNone(mMyCommand.Face)) > -1)
-            {
-                cmbFace.SelectedIndex = cmbFace.Items.IndexOf(TextUtils.NullToNone(mMyCommand.Face));
-            }
-            else
-            {
-                cmbFace.SelectedIndex = 0;
-            }
+            cmbFace.SelectedIndex = Math.Max(0, cmbFace.Items.IndexOf(TextUtils.NullToNone(mMyCommand.Face)));
 
             UpdateFacePreview();
         }

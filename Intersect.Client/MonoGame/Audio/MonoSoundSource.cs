@@ -1,31 +1,40 @@
-﻿using System;
+using System;
 using System.IO;
 
 using Intersect.Client.Framework.Audio;
+using Intersect.Client.Framework.Content;
+using Intersect.Client.General;
 using Intersect.Client.Interface.Game.Chat;
 using Intersect.Client.Localization;
 using Intersect.Logging;
 
 using Microsoft.Xna.Framework.Audio;
-using Microsoft.Xna.Framework.Content;
 
 namespace Intersect.Client.MonoGame.Audio
 {
 
-    public class MonoSoundSource : GameAudioSource
+    public partial class MonoSoundSource : GameAudioSource
     {
-
         private readonly string mPath;
         private readonly string mRealPath;
+        private Func<Stream> mCreateStream;
 
         private int mInstanceCount;
 
         private SoundEffect mSound;
 
-        public MonoSoundSource(string path, string realPath)
+        public MonoSoundSource(string path, string realPath, string name = default)
         {
+            
             mPath = path;
             mRealPath = realPath;
+            Name = string.IsNullOrWhiteSpace(name) ? string.Empty : name;
+        }
+
+        public MonoSoundSource(Func<Stream> createStream, string name = default)
+        {
+            mCreateStream = createStream;
+            Name = string.IsNullOrWhiteSpace(name) ? string.Empty : name;
         }
 
         public SoundEffect Effect
@@ -61,23 +70,42 @@ namespace Intersect.Client.MonoGame.Audio
 
         private void LoadSound()
         {
-            using (var fileStream = new FileStream(mRealPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            try
             {
-                try
+                if (mCreateStream != null)
                 {
-                    mSound = SoundEffect.FromStream(fileStream);
+                    using (var stream = mCreateStream())
+                    {
+                        mSound = SoundEffect.FromStream(stream);
+                    }
                 }
-                catch (Exception exception)
+                else if (Globals.ContentManager.SoundPacks != null && Globals.ContentManager.SoundPacks.Contains(mRealPath))
                 {
-                    Log.Error($"Error loading '{mPath}'.", exception);
-                    ChatboxMsg.AddMessage(
-                        new ChatboxMsg(
-                            $"{Strings.Errors.LoadFile.ToString(Strings.Words.lcase_sound)} [{mPath}]",
-                            new Color(0xBF, 0x0, 0x0)
-                        )
-                    );
+                    using (var stream = Globals.ContentManager.SoundPacks.GetAsset(mRealPath))
+                    {
+                        mSound = SoundEffect.FromStream(stream);
+                    }
+                }
+                else
+                {
+                    using (var fileStream = new FileStream(mRealPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                    {
+                        mSound = SoundEffect.FromStream(fileStream);
+                    }  
+
                 }
             }
+            catch (Exception exception)
+            {
+                Log.Error(exception, $"Error loading '{mPath}'.");
+                ChatboxMsg.AddMessage(
+                    new ChatboxMsg(
+                        $"{Strings.Errors.LoadFile.ToString(Strings.Words.lcase_sound)} [{mPath}]",
+                        new Color(0xBF, 0x0, 0x0),  Enums.ChatMessageType.Error
+                    )
+                );
+            }
+
         }
 
     }

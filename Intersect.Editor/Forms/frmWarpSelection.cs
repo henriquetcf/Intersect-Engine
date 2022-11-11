@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Reflection;
@@ -35,6 +35,8 @@ namespace Intersect.Editor.Forms
         public FrmWarpSelection()
         {
             InitializeComponent();
+            Icon = Icon.ExtractAssociatedIcon(Assembly.GetExecutingAssembly().Location);
+
             InitLocalization();
             mapTreeList1.UpdateMapList(mCurrentMapId);
             pnlMap.Width = Options.TileWidth * Options.MapWidth;
@@ -62,7 +64,7 @@ namespace Intersect.Editor.Forms
         private void InitLocalization()
         {
             Text = Strings.WarpSelection.title;
-            chkChronological.Text = Strings.WarpSelection.chronological;
+            chkAlphabetical.Text = Strings.WarpSelection.alphabetical;
             btnOk.Text = Strings.WarpSelection.okay;
             btnCancel.Text = Strings.WarpSelection.cancel;
             grpMapList.Text = Strings.WarpSelection.maplist;
@@ -71,7 +73,7 @@ namespace Intersect.Editor.Forms
 
         private void NodeDoubleClick(object sender, TreeViewEventArgs e)
         {
-            if (e.Node.Tag.GetType() == typeof(MapListMap))
+            if (e.Node.Tag is MapListMap)
             {
                 SelectTile(((MapListMap) e.Node.Tag).MapId, mCurrentX, mCurrentY);
             }
@@ -158,7 +160,7 @@ namespace Intersect.Editor.Forms
 
         private void chkChronological_CheckedChanged(object sender, EventArgs e)
         {
-            mapTreeList1.Chronological = chkChronological.Checked;
+            mapTreeList1.Chronological = chkAlphabetical.Checked;
             mapTreeList1.UpdateMapList(mCurrentMapId, mRestrictMaps);
         }
 

@@ -1,11 +1,18 @@
-﻿namespace Intersect.Network.Packets.Server
+﻿using MessagePack;
+
+namespace Intersect.Network.Packets.Server
 {
-
-    public class NpcEntityPacket : EntityPacket
+    [MessagePackObject]
+    public partial class NpcEntityPacket : EntityPacket
     {
+        //Parameterless Constructor for MessagePack
+        public NpcEntityPacket()
+        {
+        }
 
+
+        [Key(24)]
         public int Aggression { get; set; }
-
     }
 
 }

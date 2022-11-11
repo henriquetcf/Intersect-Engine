@@ -6,12 +6,10 @@ using Intersect.Server.Database.PlayerData.Security;
 using Intersect.Server.Localization;
 using Intersect.Server.Networking;
 
-using JetBrains.Annotations;
-
 namespace Intersect.Server.Core.Commands
 {
 
-    internal sealed class PowerCommand : TargetClientCommand
+    internal sealed partial class PowerCommand : TargetClientCommand
     {
 
         public PowerCommand() : base(
@@ -21,7 +19,6 @@ namespace Intersect.Server.Core.Commands
         {
         }
 
-        [NotNull]
         private VariableArgument<Access> Power => FindArgumentOrThrow<VariableArgument<Access>>();
 
         protected override void HandleTarget(ServerContext context, ParserResult result, Client target)

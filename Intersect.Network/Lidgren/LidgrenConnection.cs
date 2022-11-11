@@ -11,7 +11,7 @@ using Lidgren.Network;
 namespace Intersect.Network.Lidgren
 {
 
-    public sealed class LidgrenConnection : AbstractConnection
+    public sealed partial class LidgrenConnection : AbstractConnection
     {
 
         private byte[] mAesKey;
@@ -123,8 +123,8 @@ namespace Intersect.Network.Lidgren
 
             Timing.Global.Synchronize(approval.UTC, approval.Offset);
             Log.Debug($"approval Time={approval.Adjusted / TimeSpan.TicksPerMillisecond} Offset={approval.Offset / TimeSpan.TicksPerMillisecond} Real={approval.UTC / TimeSpan.TicksPerMillisecond}");
-            Log.Debug($"local Time={Timing.Global.Milliseconds} Offset={Timing.Global.MillisecondsOffset} Real={Timing.Global.MillisecondsUTC}");
-            Log.Debug($"real delta={(Timing.Global.TicksUTC - approval.UTC) / TimeSpan.TicksPerMillisecond}");
+            Log.Debug($"local Time={Timing.Global.Milliseconds} Offset={Timing.Global.MillisecondsOffset} Real={Timing.Global.MillisecondsUtc}");
+            Log.Debug($"real delta={(Timing.Global.TicksUtc - approval.UTC) / TimeSpan.TicksPerMillisecond}");
             Log.Debug($"this.Statistics.Ping={this.Statistics.Ping} NCPing={(long)Math.Ceiling(NetConnection.AverageRoundtripTime * 1000)}");
 
             return true;
@@ -136,9 +136,9 @@ namespace Intersect.Network.Lidgren
             NetConnection?.Disconnect(NetworkStatus.Quitting.ToString());
         }
 
-        public override bool Send(IPacket packet)
+        public override bool Send(IPacket packet, TransmissionMode mode = TransmissionMode.All)
         {
-            return Network?.Send(this, packet) ?? false;
+            return Network?.Send(this, packet, mode) ?? false;
         }
 
     }

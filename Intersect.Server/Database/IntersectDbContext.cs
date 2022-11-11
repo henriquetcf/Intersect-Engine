@@ -1,30 +1,28 @@
-﻿using System;
+﻿using Intersect.Config;
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
 using System.Reflection;
-
-using Intersect.Config;
-
-using JetBrains.Annotations;
-
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Intersect.Server.Database
 {
-
     /// <summary>
     /// Abstract DbContext class for all Intersect database contexts.
     /// </summary>
     /// <inheritdoc cref="DbContext" />
     /// <inheritdoc cref="ISeedableContext" />
-    public abstract class IntersectDbContext<T> : DbContext, ISeedableContext where T : IntersectDbContext<T>
+    public abstract partial class IntersectDbContext<T> : DbContext, ISeedableContext where T : IntersectDbContext<T>
     {
-
-        [NotNull] private static readonly IDictionary<Type, ConstructorInfo> constructorCache =
+        private static readonly IDictionary<Type, ConstructorInfo> constructorCache =
             new ConcurrentDictionary<Type, ConstructorInfo>();
 
         private static DbConnectionStringBuilder configuredConnectionStringBuilder;
@@ -40,52 +38,60 @@ namespace Intersect.Server.Database
         /// <param name="databaseType"></param>
         /// <inheritdoc />
         protected IntersectDbContext(
-            [NotNull] DbConnectionStringBuilder connectionStringBuilder,
+            DbConnectionStringBuilder connectionStringBuilder,
             DatabaseOptions.DatabaseType databaseType = DatabaseOptions.DatabaseType.SQLite,
-            bool isTemporary = false,
             Intersect.Logging.Logger dbLogger = null,
-            Intersect.Logging.LogLevel logLevel = Intersect.Logging.LogLevel.None
+            Intersect.Logging.LogLevel logLevel = Intersect.Logging.LogLevel.None,
+            bool asReadOnly = false, bool autoDetectChanges = true
         )
         {
             ConnectionStringBuilder = connectionStringBuilder;
             DatabaseType = databaseType;
 
             //Translate Intersect.Logging.LogLevel into LoggerFactory Log Level
-            if (dbLogger != null && logLevel > Intersect.Logging.LogLevel.None)
+            if (loggerFactory == null && dbLogger != null && logLevel > Intersect.Logging.LogLevel.None)
             {
                 var efLogLevel = LogLevel.None;
                 switch (logLevel)
                 {
                     case Intersect.Logging.LogLevel.None:
                         break;
+
                     case Intersect.Logging.LogLevel.Error:
                         efLogLevel = LogLevel.Error;
 
                         break;
+
                     case Intersect.Logging.LogLevel.Warn:
                         efLogLevel = LogLevel.Warning;
 
                         break;
+
                     case Intersect.Logging.LogLevel.Info:
                         efLogLevel = LogLevel.Information;
 
                         break;
+
                     case Intersect.Logging.LogLevel.Trace:
                         efLogLevel = LogLevel.Trace;
 
                         break;
+
                     case Intersect.Logging.LogLevel.Verbose:
                         efLogLevel = LogLevel.Trace;
 
                         break;
+
                     case Intersect.Logging.LogLevel.Debug:
                         efLogLevel = LogLevel.Debug;
 
                         break;
+
                     case Intersect.Logging.LogLevel.Diagnostic:
                         efLogLevel = LogLevel.Trace;
 
                         break;
+
                     case Intersect.Logging.LogLevel.All:
                         efLogLevel = LogLevel.Trace;
 
@@ -100,13 +106,16 @@ namespace Intersect.Server.Database
                 );
             }
 
-            if (!isTemporary)
+            ReadOnly = asReadOnly;
+
+            ChangeTracker.AutoDetectChangesEnabled = autoDetectChanges || ReadOnly;
+
+            if (ReadOnly)
             {
-                Current = this as T;
+                ChangeTracker.LazyLoadingEnabled = false;
+                ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             }
         }
-
-        public static T Current { get; private set; }
 
         private static ILoggerFactory MsExtLoggerFactory { get; } =
             LoggerFactory.Create(builder => builder.AddConsole());
@@ -119,10 +128,13 @@ namespace Intersect.Server.Database
         /// <summary>
         /// 
         /// </summary>
-        [NotNull]
+        public bool ReadOnly { get; }
+
+        /// <summary>
+        /// 
+        /// </summary>
         public DbConnectionStringBuilder ConnectionStringBuilder { get; }
 
-        [NotNull]
         public ICollection<string> PendingMigrations =>
             Database?.GetPendingMigrations()?.ToList() ?? new List<string>();
 
@@ -145,7 +157,6 @@ namespace Intersect.Server.Database
             configuredConnectionStringBuilder = connectionStringBuilder;
         }
 
-        [NotNull]
         public static T Create(
             DatabaseOptions.DatabaseType? databaseType = null,
             DbConnectionStringBuilder connectionStringBuilder = null
@@ -180,7 +191,7 @@ namespace Intersect.Server.Database
             return contextInstance;
         }
 
-        protected override void OnConfiguring([NotNull] DbContextOptionsBuilder optionsBuilder)
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             base.OnConfiguring(optionsBuilder);
 
@@ -192,12 +203,12 @@ namespace Intersect.Server.Database
             switch (DatabaseType)
             {
                 case DatabaseOptions.DatabaseType.SQLite:
-                    optionsBuilder.UseLoggerFactory(loggerFactory).UseSqlite(connectionString);
+                    optionsBuilder.UseLoggerFactory(loggerFactory).UseSqlite(connectionString).UseQueryTrackingBehavior(ReadOnly ? QueryTrackingBehavior.NoTracking : QueryTrackingBehavior.TrackAll);
 
                     break;
 
                 case DatabaseOptions.DatabaseType.MySQL:
-                    optionsBuilder.UseLoggerFactory(loggerFactory).UseMySql(connectionString);
+                    optionsBuilder.UseLoggerFactory(loggerFactory).UseMySql(connectionString, options => options.EnableRetryOnFailure(5, TimeSpan.FromSeconds(12), null)).UseQueryTrackingBehavior(ReadOnly ? QueryTrackingBehavior.NoTracking : QueryTrackingBehavior.TrackAll);
 
                     break;
 
@@ -247,8 +258,37 @@ namespace Intersect.Server.Database
             }
         }
 
-        public virtual void MigrationsProcessed([NotNull] string[] migrations) { }
+        public virtual void MigrationsProcessed(string[] migrations) { }
 
+        public override int SaveChanges()
+        {
+            if (ReadOnly)
+                throw new InvalidOperationException("Cannot save changes on a read only context!");
+
+            return base.SaveChanges();
+        }
+
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            if (ReadOnly)
+                throw new InvalidOperationException("Cannot save changes on a read only context!");
+
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+
+        public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+        {
+            if (ReadOnly)
+                throw new InvalidOperationException("Cannot save changes on a read only context!");
+            return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+
+        public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            if (ReadOnly)
+                throw new InvalidOperationException("Cannot save changes on a read only context!");
+
+            return base.SaveChangesAsync(cancellationToken);
+        }
     }
-
 }

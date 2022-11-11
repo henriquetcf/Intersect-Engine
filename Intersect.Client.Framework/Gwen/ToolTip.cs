@@ -6,7 +6,7 @@ namespace Intersect.Client.Framework.Gwen
     /// <summary>
     ///     Tooltip handling.
     /// </summary>
-    public static class ToolTip
+    public static partial class ToolTip
     {
 
         private static Base sG_toolTip;
@@ -52,7 +52,7 @@ namespace Intersect.Client.Framework.Gwen
         /// <param name="skin"></param>
         public static void RenderToolTip(Skin.Base skin)
         {
-            if (null == sG_toolTip)
+            if (sG_toolTip == null || sG_toolTip.ToolTip == null)
             {
                 return;
             }

@@ -1,12 +1,9 @@
-﻿using JetBrains.Annotations;
-
-namespace Intersect.Server.Web.RestApi.Payloads
+﻿namespace Intersect.Server.Web.RestApi.Payloads
 {
 
-    public struct PasswordValidation
+    public partial struct PasswordValidation
     {
 
-        [NotNull]
         public string Password { get; set; }
 
     }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 using Intersect.Enums;
 
@@ -40,9 +40,15 @@ namespace Intersect.GameObjects.Events
 
         HasFreeInventorySlots,
 
+        InGuildWithRank,
+
+        MapZoneTypeIs,
+
+        CheckEquipment,
+
     }
 
-    public class Condition
+    public partial class Condition
     {
 
         public virtual ConditionTypes Type { get; }
@@ -56,7 +62,7 @@ namespace Intersect.GameObjects.Events
 
     }
 
-    public class VariableIsCondition : Condition
+    public partial class VariableIsCondition : Condition
     {
 
         public override ConditionTypes Type { get; } = ConditionTypes.VariableIs;
@@ -69,7 +75,7 @@ namespace Intersect.GameObjects.Events
 
     }
 
-    public class HasItemCondition : Condition
+    public partial class HasItemCondition : Condition
     {
 
         public override ConditionTypes Type { get; } = ConditionTypes.HasItem;
@@ -78,9 +84,26 @@ namespace Intersect.GameObjects.Events
 
         public int Quantity { get; set; }
 
+        /// <summary>
+        /// Defines whether this event command will use a variable for processing or not.
+        /// </summary>
+        public bool UseVariable { get; set; } = false;
+
+        /// <summary>
+        /// Defines whether the variable used is a Player or Global variable.
+        /// </summary>
+        public VariableTypes VariableType { get; set; } = VariableTypes.PlayerVariable;
+
+        /// <summary>
+        /// The Variable Id to use.
+        /// </summary>
+        public Guid VariableId { get; set; }
+
+        public bool CheckBank { get; set; }
+
     }
 
-    public class ClassIsCondition : Condition
+    public partial class ClassIsCondition : Condition
     {
 
         public override ConditionTypes Type { get; } = ConditionTypes.ClassIs;
@@ -89,7 +112,7 @@ namespace Intersect.GameObjects.Events
 
     }
 
-    public class KnowsSpellCondition : Condition
+    public partial class KnowsSpellCondition : Condition
     {
 
         public override ConditionTypes Type { get; } = ConditionTypes.KnowsSpell;
@@ -98,7 +121,7 @@ namespace Intersect.GameObjects.Events
 
     }
 
-    public class LevelOrStatCondition : Condition
+    public partial class LevelOrStatCondition : Condition
     {
 
         public override ConditionTypes Type { get; } = ConditionTypes.LevelOrStat;
@@ -115,7 +138,7 @@ namespace Intersect.GameObjects.Events
 
     }
 
-    public class SelfSwitchCondition : Condition
+    public partial class SelfSwitchCondition : Condition
     {
 
         public override ConditionTypes Type { get; } = ConditionTypes.SelfSwitch;
@@ -126,7 +149,7 @@ namespace Intersect.GameObjects.Events
 
     }
 
-    public class AccessIsCondition : Condition
+    public partial class AccessIsCondition : Condition
     {
 
         public override ConditionTypes Type { get; } = ConditionTypes.AccessIs;
@@ -135,7 +158,7 @@ namespace Intersect.GameObjects.Events
 
     }
 
-    public class TimeBetweenCondition : Condition
+    public partial class TimeBetweenCondition : Condition
     {
 
         public override ConditionTypes Type { get; } = ConditionTypes.TimeBetween;
@@ -144,7 +167,7 @@ namespace Intersect.GameObjects.Events
 
     }
 
-    public class CanStartQuestCondition : Condition
+    public partial class CanStartQuestCondition : Condition
     {
 
         public override ConditionTypes Type { get; } = ConditionTypes.CanStartQuest;
@@ -153,7 +176,7 @@ namespace Intersect.GameObjects.Events
 
     }
 
-    public class QuestInProgressCondition : Condition
+    public partial class QuestInProgressCondition : Condition
     {
 
         public override ConditionTypes Type { get; } = ConditionTypes.QuestInProgress;
@@ -166,7 +189,7 @@ namespace Intersect.GameObjects.Events
 
     }
 
-    public class QuestCompletedCondition : Condition
+    public partial class QuestCompletedCondition : Condition
     {
 
         public override ConditionTypes Type { get; } = ConditionTypes.QuestCompleted;
@@ -175,14 +198,18 @@ namespace Intersect.GameObjects.Events
 
     }
 
-    public class NoNpcsOnMapCondition : Condition
+    public partial class NoNpcsOnMapCondition : Condition
     {
 
         public override ConditionTypes Type { get; } = ConditionTypes.NoNpcsOnMap;
 
+        public bool SpecificNpc { get; set; }
+
+        public Guid NpcId { get; set; }
+
     }
 
-    public class GenderIsCondition : Condition
+    public partial class GenderIsCondition : Condition
     {
 
         public override ConditionTypes Type { get; } = ConditionTypes.GenderIs;
@@ -191,7 +218,7 @@ namespace Intersect.GameObjects.Events
 
     }
 
-    public class MapIsCondition : Condition
+    public partial class MapIsCondition : Condition
     {
 
         public override ConditionTypes Type { get; } = ConditionTypes.MapIs;
@@ -200,7 +227,7 @@ namespace Intersect.GameObjects.Events
 
     }
 
-    public class IsItemEquippedCondition : Condition
+    public partial class IsItemEquippedCondition : Condition
     {
 
         public override ConditionTypes Type { get; } = ConditionTypes.IsItemEquipped;
@@ -212,7 +239,7 @@ namespace Intersect.GameObjects.Events
     /// <summary>
     /// Defines the condition class used when checking for a player's free inventory slots.
     /// </summary>
-    public class HasFreeInventorySlots : Condition
+    public partial class HasFreeInventorySlots : Condition
     {
         /// <summary>
         /// Defines the type of condition.
@@ -223,14 +250,62 @@ namespace Intersect.GameObjects.Events
         /// Defines the amount of inventory slots that need to be free to clear this condition.
         /// </summary>
         public int Quantity { get; set; }
+
+        /// <summary>
+        /// Defines whether this event command will use a variable for processing or not.
+        /// </summary>
+        public bool UseVariable { get; set; } = false;
+
+        /// <summary>
+        /// Defines whether the variable used is a Player or Global variable.
+        /// </summary>
+        public VariableTypes VariableType { get; set; } = VariableTypes.PlayerVariable;
+
+        /// <summary>
+        /// The Variable Id to use.
+        /// </summary>
+        public Guid VariableId { get; set; }
+
     }
 
-    public class VariableCompaison
+    /// <summary>
+    /// Defines the condition class used when checking whether a player is in a guild with at least a specified rank
+    /// </summary>
+    public partial class InGuildWithRank : Condition
+    {
+        /// <summary>
+        /// Defines the type of condition
+        /// </summary>
+        public override ConditionTypes Type { get; } = ConditionTypes.InGuildWithRank;
+
+        /// <summary>
+        /// The guild rank the condition checks for as a minimum
+        /// </summary>
+        public int Rank { get; set; }
+    }
+
+    /// <summary>
+    /// Defines the condition class used when checking whether a player is on a specific map zone type.
+    /// </summary>
+    public partial class MapZoneTypeIs : Condition
+    {
+        /// <summary>
+        /// Defines the type of condition.
+        /// </summary>
+        public override ConditionTypes Type { get; } = ConditionTypes.MapZoneTypeIs;
+
+        /// <summary>
+        /// Defines the map Zone Type to compare to.
+        /// </summary>
+        public MapZones ZoneType { get; set; }
+    }
+
+    public partial class VariableCompaison
     {
 
     }
 
-    public class BooleanVariableComparison : VariableCompaison
+    public partial class BooleanVariableComparison : VariableCompaison
     {
 
         public VariableTypes CompareVariableType { get; set; } = VariableTypes.PlayerVariable;
@@ -243,7 +318,7 @@ namespace Intersect.GameObjects.Events
 
     }
 
-    public class IntegerVariableComparison : VariableCompaison
+    public partial class IntegerVariableComparison : VariableCompaison
     {
 
         public VariableComparators Comparator { get; set; } = VariableComparators.Equal;
@@ -256,12 +331,21 @@ namespace Intersect.GameObjects.Events
 
     }
 
-    public class StringVariableComparison : VariableCompaison
+    public partial class StringVariableComparison : VariableCompaison
     {
 
         public StringVariableComparators Comparator { get; set; } = StringVariableComparators.Equal;
 
         public string Value { get; set; }
+
+    }
+
+    public partial class CheckEquippedSlot : Condition
+    {
+
+        public override ConditionTypes Type { get; } = ConditionTypes.CheckEquipment;
+
+        public string Name { get; set; }
 
     }
 

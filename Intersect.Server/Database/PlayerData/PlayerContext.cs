@@ -1,22 +1,23 @@
-﻿using System.Data.Common;
+using System.Data.Common;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
 using Intersect.Config;
 using Intersect.Server.Database.PlayerData.Api;
+using Intersect.Server.Database.PlayerData.Migrations;
 using Intersect.Server.Database.PlayerData.Players;
 using Intersect.Server.Database.PlayerData.SeedData;
 using Intersect.Server.Entities;
 
-using JetBrains.Annotations;
-
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Internal;
 
 namespace Intersect.Server.Database.PlayerData
 {
 
-    public class PlayerContext : IntersectDbContext<PlayerContext>
+    public partial class PlayerContext : IntersectDbContext<PlayerContext>, IPlayerContext
     {
 
         public PlayerContext() : base(DefaultConnectionStringBuilder)
@@ -24,59 +25,53 @@ namespace Intersect.Server.Database.PlayerData
         }
 
         public PlayerContext(
-            [NotNull] DbConnectionStringBuilder connectionStringBuilder,
+            DbConnectionStringBuilder connectionStringBuilder,
             DatabaseOptions.DatabaseType databaseType,
+            bool readOnly = false,
             Intersect.Logging.Logger logger = null,
             Intersect.Logging.LogLevel logLevel = Intersect.Logging.LogLevel.None
-        ) : base(connectionStringBuilder, databaseType, false, logger, logLevel)
+        ) : base(connectionStringBuilder, databaseType, logger, logLevel, readOnly, false)
         {
         }
 
-        [NotNull]
         public static DbConnectionStringBuilder DefaultConnectionStringBuilder =>
             new SqliteConnectionStringBuilder(@"Data Source=resources/playerdata.db");
 
-        [NotNull]
         public DbSet<User> Users { get; set; }
 
-        [NotNull]
         public DbSet<Mute> Mutes { get; set; }
 
-        [NotNull]
         public DbSet<Ban> Bans { get; set; }
 
-        [NotNull]
         public DbSet<RefreshToken> RefreshTokens { get; set; }
 
-        [NotNull]
         public DbSet<Player> Players { get; set; }
 
-        [NotNull]
         public DbSet<BankSlot> Player_Bank { get; set; }
 
-        [NotNull]
         public DbSet<Friend> Player_Friends { get; set; }
 
-        [NotNull]
         public DbSet<HotbarSlot> Player_Hotbar { get; set; }
 
-        [NotNull]
         public DbSet<InventorySlot> Player_Items { get; set; }
 
-        [NotNull]
         public DbSet<Quest> Player_Quests { get; set; }
 
-        [NotNull]
         public DbSet<SpellSlot> Player_Spells { get; set; }
 
-        [NotNull]
-        public DbSet<Variable> Player_Variables { get; set; }
+        public DbSet<PlayerVariable> Player_Variables { get; set; }
 
-        [NotNull]
         public DbSet<Bag> Bags { get; set; }
 
-        [NotNull]
         public DbSet<BagSlot> Bag_Items { get; set; }
+
+        public DbSet<Guild> Guilds { get; set; }
+
+        public DbSet<GuildBankSlot> Guild_Bank { get; set; }
+
+        public DbSet<GuildVariable> Guild_Variables { get; set; }
+
+        public DbSet<UserVariable> User_Variables { get; set; }
 
         internal async ValueTask Commit(
             bool commit = false,
@@ -95,7 +90,7 @@ namespace Intersect.Server.Database.PlayerData
             }
         }
 
-        protected override void OnModelCreating([NotNull] ModelBuilder modelBuilder)
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<RefreshToken>().HasOne(token => token.User);
 
@@ -116,7 +111,7 @@ namespace Intersect.Server.Database.PlayerData
             modelBuilder.Entity<Player>().HasMany(b => b.Items).WithOne(p => p.Player);
 
             modelBuilder.Entity<Player>().HasMany(b => b.Variables).WithOne(p => p.Player);
-            modelBuilder.Entity<Variable>().HasIndex(p => new {p.VariableId, CharacterId = p.PlayerId}).IsUnique();
+            modelBuilder.Entity<PlayerVariable>().HasIndex(p => new {p.VariableId, CharacterId = p.PlayerId}).IsUnique();
 
             modelBuilder.Entity<Player>().HasMany(b => b.Hotbar).WithOne(p => p.Player);
 
@@ -133,19 +128,100 @@ namespace Intersect.Server.Database.PlayerData
             modelBuilder.Entity<InventorySlot>().HasOne(b => b.Bag);
             modelBuilder.Entity<BagSlot>().HasOne(b => b.Bag);
             modelBuilder.Entity<BankSlot>().HasOne(b => b.Bag);
+
+            modelBuilder.Entity<Guild>().HasMany(b => b.Bank).WithOne(p => p.Guild);
+            modelBuilder.Entity<GuildBankSlot>().HasOne(b => b.Bag);
+
+            modelBuilder.Entity<Guild>().HasMany(b => b.Variables).WithOne(p => p.Guild);
+            modelBuilder.Entity<GuildVariable>().HasIndex(p => new { p.VariableId, GuildId = p.GuildId }).IsUnique();
+
+            modelBuilder.Entity<User>().HasMany(b => b.Variables).WithOne(p => p.User);
+            modelBuilder.Entity<UserVariable>().HasKey(p => new { p.VariableId, UserId = p.UserId });
+            modelBuilder.Entity<UserVariable>().Ignore(v => v.Id);
         }
 
         public void Seed()
         {
 #if DEBUG
             new SeedUsers().SeedIfEmpty(this);
-
+            ChangeTracker.DetectChanges();
             SaveChanges();
 #endif
         }
 
         public override void MigrationsProcessed(string[] migrations)
         {
+            if (migrations.IndexOf("20220331140427_GuildBankMaxSlotsMigration") > -1)
+            {
+                GuildBankMaxSlotMigration.Run(this);
+            }
+        }
+
+        public void DetachExcept<TEntity>(params TEntity[] entities)
+        {
+            var entriesToDetach = ChangeTracker.Entries().Where(entry => entry.State != EntityState.Detached && entry.State != EntityState.Unchanged && entry.Entity is TEntity).ToList();
+            foreach (var entry in entriesToDetach)
+            {
+                if (entry.Entity is TEntity other && !entities.Contains(other))
+                {
+                    entry.State = EntityState.Detached;
+                }
+            }
+        }
+
+        public void StopTrackingUsersExcept(User user)
+        {
+            //We don't want to be saving this players friends or anything....
+            var otherUsers = ChangeTracker.Entries().Where(e => (e.State == EntityState.Added || e.State == EntityState.Modified || e.State == EntityState.Deleted) && (e.Entity is User && e.Entity != user)).ToList();
+            foreach (var otherUser in otherUsers)
+            {
+                if (otherUser.Entity != null)
+                {
+                    Entry(otherUser.Entity).State = EntityState.Detached;
+                }
+            }
+
+            StopTrackingPlayersExcept(user.Players.ToArray());
+
+        }
+
+        public void StopTrackingPlayersExcept(Player[] players, bool trackUsers = true)
+        {
+            //We don't want to be saving this players friends or anything....
+            var otherPlayers = ChangeTracker.Entries().Where(e => (e.State == EntityState.Added || e.State == EntityState.Modified || e.State == EntityState.Deleted) && (e.Entity is Player && !players.Contains(e.Entity))).ToList();
+            foreach (var otherPlayer in otherPlayers)
+            {
+                if (otherPlayer.Entity != null)
+                {
+                    DetachPlayer((Player)otherPlayer.Entity);
+                }
+            }
+        }
+
+        private void DetachPlayer(Player player)
+        {
+            Entry(player).State = EntityState.Detached;
+
+            foreach (var itm in player.Friends)
+                Entry(itm).State = EntityState.Detached;
+
+            foreach (var itm in player.Spells)
+                Entry(itm).State = EntityState.Detached;
+
+            foreach (var itm in player.Items)
+                Entry(itm).State = EntityState.Detached;
+
+            foreach (var itm in player.Variables)
+                Entry(itm).State = EntityState.Detached;
+
+            foreach (var itm in player.Hotbar)
+                Entry(itm).State = EntityState.Detached;
+
+            foreach (var itm in player.Quests)
+                Entry(itm).State = EntityState.Detached;
+
+            foreach (var itm in player.Bank)
+                Entry(itm).State = EntityState.Detached;
         }
 
     }

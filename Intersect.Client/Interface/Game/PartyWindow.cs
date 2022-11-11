@@ -3,6 +3,7 @@ using System.Collections.Generic;
 
 using Intersect.Client.Core;
 using Intersect.Client.Framework.File_Management;
+using Intersect.Client.Framework.Graphics;
 using Intersect.Client.Framework.Gwen.Control;
 using Intersect.Client.Framework.Gwen.Control.EventArguments;
 using Intersect.Client.General;
@@ -13,7 +14,7 @@ using Intersect.Enums;
 namespace Intersect.Client.Interface.Game
 {
 
-    public class PartyWindow
+    public partial class PartyWindow
     {
 
         private List<ImagePanel> mHpBar = new List<ImagePanel>();

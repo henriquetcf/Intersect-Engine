@@ -4,7 +4,7 @@
     /// <summary>
     /// Contains configurable options pertaining to the way Npcs are handled by the engine.
     /// </summary>
-    public class NpcOptions
+    public partial class NpcOptions
     {
 
         /// <summary>
@@ -25,10 +25,34 @@
         public bool AllowNewResetLocationBeforeFinish = false;
 
         /// <summary>
-        /// Configures whether or not the NPC should completely restore its vitals and statusses once it resets.
+        /// Configures whether or not the NPC should completely restore its vitals and statusses once it starts resetting.
         /// </summary>
         public bool ResetVitalsAndStatusses = false;
 
+        /// <summary>
+        /// Configures whether or not the NPCs health should continue to reset to full and clear statuses while working its way to the reset location
+        /// </summary>
+        public bool ContinuouslyResetVitalsAndStatuses = false;
+
+        /// <summary>
+        /// If true, a NPC can be attacked while they are resetting. Their new attacker will become a target if they are within the reset radius
+        /// </summary>
+        public bool AllowEngagingWhileResetting = false;
+
+        /// <summary>
+        /// Configures whether or not the level of an Npc is shown next to their name.
+        /// </summary>
+        public bool ShowLevelByName = false;
+
+        /// <summary>
+        /// If true, NPCs that are resetting will walkthrough players
+        /// </summary>
+        public bool IntangibleDuringReset = true;
+
+        /// <summary>
+        /// If true, NPCs will go to reset state if their combat timer is exceeded
+        /// </summary>
+        public bool ResetIfCombatTimerExceeded = true;
     }
 
 }

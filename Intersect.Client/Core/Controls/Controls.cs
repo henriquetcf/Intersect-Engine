@@ -1,19 +1,18 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
 using Intersect.Client.Framework.GenericClasses;
 using Intersect.Client.General;
-
-using JetBrains.Annotations;
+using Newtonsoft.Json;
 
 namespace Intersect.Client.Core.Controls
 {
 
-    public class Controls
+    public partial class Controls
     {
 
-        [NotNull] public readonly IDictionary<Control, ControlMap> ControlMapping;
+        public readonly IDictionary<Control, ControlMap> ControlMapping;
 
         public Controls(Controls gameControls = null)
         {
@@ -23,7 +22,7 @@ namespace Intersect.Client.Core.Controls
             {
                 foreach (var mapping in gameControls.ControlMapping)
                 {
-                    CreateControlMap(mapping.Key, mapping.Value.Key1, mapping.Value.Key2);
+                    CreateControlMap(mapping.Key, mapping.Value);
                 }
             }
             else
@@ -31,22 +30,22 @@ namespace Intersect.Client.Core.Controls
                 ResetDefaults();
                 foreach (Control control in Enum.GetValues(typeof(Control)))
                 {
-                    var name = Enum.GetName(typeof(Control), control);
-                    var key1 = Globals.Database.LoadPreference(name + "_key1");
-                    var key2 = Globals.Database.LoadPreference(name + "_key2");
-                    if (string.IsNullOrEmpty(key1) || string.IsNullOrEmpty(key2))
-                    {
-                        Globals.Database.SavePreference(
-                            name + "_key1", ((int) ControlMapping[control].Key1).ToString()
-                        );
+                    MigrateControlBindings(control);
 
-                        Globals.Database.SavePreference(
-                            name + "_key2", ((int) ControlMapping[control].Key2).ToString()
-                        );
-                    }
-                    else
+                    var name = Enum.GetName(typeof(Control), control);
+                    var bindings = ControlMapping[control].Bindings;
+                    for (var bindingIndex = 0; bindingIndex < bindings.Count; bindingIndex++)
                     {
-                        CreateControlMap(control, (Keys) Convert.ToInt32(key1), (Keys) Convert.ToInt32(key2));
+                        var preferenceKey = $"{name}_binding{bindingIndex}";
+                        var preference = Globals.Database.LoadPreference(preferenceKey);
+                        if (string.IsNullOrWhiteSpace(preference))
+                        {
+                            Globals.Database.SavePreference(preferenceKey, JsonConvert.SerializeObject(bindings[bindingIndex]));
+                        }
+                        else
+                        {
+                            bindings[bindingIndex] = JsonConvert.DeserializeObject<ControlValue>(preference);
+                        }
                     }
                 }
             }
@@ -56,37 +55,60 @@ namespace Intersect.Client.Core.Controls
 
         public void ResetDefaults()
         {
-            CreateControlMap(Control.MoveUp, Keys.Up, Keys.W);
-            CreateControlMap(Control.MoveDown, Keys.Down, Keys.S);
-            CreateControlMap(Control.MoveLeft, Keys.Left, Keys.A);
-            CreateControlMap(Control.MoveRight, Keys.Right, Keys.D);
-            CreateControlMap(Control.AttackInteract, Keys.E, Keys.LButton);
-            CreateControlMap(Control.Block, Keys.Q, Keys.RButton);
-            CreateControlMap(Control.AutoTarget, Keys.Tab, Keys.None);
-            CreateControlMap(Control.PickUp, Keys.Space, Keys.None);
-            CreateControlMap(Control.Enter, Keys.Enter, Keys.None);
-            CreateControlMap(Control.Hotkey1, Keys.D1, Keys.None);
-            CreateControlMap(Control.Hotkey2, Keys.D2, Keys.None);
-            CreateControlMap(Control.Hotkey3, Keys.D3, Keys.None);
-            CreateControlMap(Control.Hotkey4, Keys.D4, Keys.None);
-            CreateControlMap(Control.Hotkey5, Keys.D5, Keys.None);
-            CreateControlMap(Control.Hotkey6, Keys.D6, Keys.None);
-            CreateControlMap(Control.Hotkey7, Keys.D7, Keys.None);
-            CreateControlMap(Control.Hotkey8, Keys.D8, Keys.None);
-            CreateControlMap(Control.Hotkey9, Keys.D9, Keys.None);
-            CreateControlMap(Control.Hotkey0, Keys.D0, Keys.None);
-            CreateControlMap(Control.Screenshot, Keys.F12, Keys.None);
-            CreateControlMap(Control.OpenMenu, Keys.Escape, Keys.None);
-            CreateControlMap(Control.OpenInventory, Keys.I, Keys.None);
-            CreateControlMap(Control.OpenQuests, Keys.L, Keys.None);
-            CreateControlMap(Control.OpenCharacterInfo, Keys.C, Keys.None);
-            CreateControlMap(Control.OpenParties, Keys.P, Keys.None);
-            CreateControlMap(Control.OpenSpells, Keys.X, Keys.None);
-            CreateControlMap(Control.OpenFriends, Keys.F, Keys.None);
-            CreateControlMap(Control.OpenSettings, Keys.None, Keys.None);
-            CreateControlMap(Control.OpenDebugger, Keys.F2, Keys.None);
-            CreateControlMap(Control.OpenAdminPanel, Keys.Insert, Keys.None);
-            CreateControlMap(Control.ToggleGui, Keys.F11, Keys.None);
+            CreateControlMap(Control.MoveUp, new ControlValue(Keys.None, Keys.Up), new ControlValue(Keys.None, Keys.W));
+            CreateControlMap(Control.MoveDown, new ControlValue(Keys.None, Keys.Down), new ControlValue(Keys.None, Keys.S));
+            CreateControlMap(Control.MoveLeft, new ControlValue(Keys.None, Keys.Left), new ControlValue(Keys.None, Keys.A));
+            CreateControlMap(Control.MoveRight, new ControlValue(Keys.None, Keys.Right), new ControlValue(Keys.None, Keys.D));
+            CreateControlMap(Control.AttackInteract, new ControlValue(Keys.None, Keys.E), new ControlValue(Keys.None, Keys.LButton));
+            CreateControlMap(Control.Block, new ControlValue(Keys.None, Keys.Q), new ControlValue(Keys.None, Keys.RButton));
+            CreateControlMap(Control.AutoTarget, new ControlValue(Keys.None, Keys.Tab), ControlValue.Default);
+            CreateControlMap(Control.PickUp, new ControlValue(Keys.None, Keys.Space), ControlValue.Default);
+            CreateControlMap(Control.Enter, new ControlValue(Keys.None, Keys.Enter), ControlValue.Default);
+            CreateControlMap(Control.Hotkey1, new ControlValue(Keys.None, Keys.D1), ControlValue.Default);
+            CreateControlMap(Control.Hotkey2, new ControlValue(Keys.None, Keys.D2), ControlValue.Default);
+            CreateControlMap(Control.Hotkey3, new ControlValue(Keys.None, Keys.D3), ControlValue.Default);
+            CreateControlMap(Control.Hotkey4, new ControlValue(Keys.None, Keys.D4), ControlValue.Default);
+            CreateControlMap(Control.Hotkey5, new ControlValue(Keys.None, Keys.D5), ControlValue.Default);
+            CreateControlMap(Control.Hotkey6, new ControlValue(Keys.None, Keys.D6), ControlValue.Default);
+            CreateControlMap(Control.Hotkey7, new ControlValue(Keys.None, Keys.D7), ControlValue.Default);
+            CreateControlMap(Control.Hotkey8, new ControlValue(Keys.None, Keys.D8), ControlValue.Default);
+            CreateControlMap(Control.Hotkey9, new ControlValue(Keys.None, Keys.D9), ControlValue.Default);
+            CreateControlMap(Control.Hotkey0, new ControlValue(Keys.None, Keys.D0), ControlValue.Default);
+            CreateControlMap(Control.Screenshot, new ControlValue(Keys.None, Keys.F12), ControlValue.Default);
+            CreateControlMap(Control.OpenMenu, new ControlValue(Keys.None, Keys.Escape), ControlValue.Default);
+            CreateControlMap(Control.OpenInventory, new ControlValue(Keys.None, Keys.I), ControlValue.Default);
+            CreateControlMap(Control.OpenQuests, new ControlValue(Keys.None, Keys.L), ControlValue.Default);
+            CreateControlMap(Control.OpenCharacterInfo, new ControlValue(Keys.None, Keys.C), ControlValue.Default);
+            CreateControlMap(Control.OpenParties, new ControlValue(Keys.None, Keys.P), ControlValue.Default);
+            CreateControlMap(Control.OpenSpells, new ControlValue(Keys.None, Keys.K), ControlValue.Default);
+            CreateControlMap(Control.OpenFriends, new ControlValue(Keys.None, Keys.F), ControlValue.Default);
+            CreateControlMap(Control.OpenGuild, new ControlValue(Keys.None, Keys.G), ControlValue.Default);
+            CreateControlMap(Control.OpenSettings, new ControlValue(Keys.None, Keys.O), ControlValue.Default);
+            CreateControlMap(Control.OpenDebugger, new ControlValue(Keys.None, Keys.F2), ControlValue.Default);
+            CreateControlMap(Control.OpenAdminPanel, new ControlValue(Keys.None, Keys.Insert), ControlValue.Default);
+            CreateControlMap(Control.ToggleGui, new ControlValue(Keys.None, Keys.F11), ControlValue.Default);
+            CreateControlMap(Control.TurnAround, new ControlValue(Keys.None, Keys.Control), ControlValue.Default);
+        }
+
+        private static void MigrateControlBindings(Control control)
+        {
+            var name = Enum.GetName(typeof(Control), control);
+            if (Globals.Database.HasPreference($"{name}_key1value"))
+            {
+                Globals.Database.SavePreference($"{name}_binding0", Globals.Database.LoadPreference($"{name}_key1value"));
+                Globals.Database.SavePreference($"{name}_binding1", Globals.Database.LoadPreference($"{name}_key2value"));
+                Globals.Database.DeletePreference($"{name}_key1value");
+                Globals.Database.DeletePreference($"{name}_key2value");
+            }
+            else if (Globals.Database.HasPreference($"{name}_key1"))
+            {
+                var key1 = JsonConvert.DeserializeObject<Keys>(Globals.Database.LoadPreference($"{name}_key1"));
+                var key2 = JsonConvert.DeserializeObject<Keys>(Globals.Database.LoadPreference($"{name}_key2"));
+                Globals.Database.SavePreference($"{name}_binding0", JsonConvert.SerializeObject(new ControlValue(Keys.None, key1)));
+                Globals.Database.SavePreference($"{name}_binding1", JsonConvert.SerializeObject(new ControlValue(Keys.None, key2)));
+                Globals.Database.DeletePreference($"{name}_key1");
+                Globals.Database.DeletePreference($"{name}_key2");
+            }
         }
 
         public void Save()
@@ -94,8 +116,12 @@ namespace Intersect.Client.Core.Controls
             foreach (Control control in Enum.GetValues(typeof(Control)))
             {
                 var name = Enum.GetName(typeof(Control), control);
-                Globals.Database.SavePreference(name + "_key1", ((int) ControlMapping[control].Key1).ToString());
-                Globals.Database.SavePreference(name + "_key2", ((int) ControlMapping[control].Key2).ToString());
+                var bindings = ControlMapping[control].Bindings;
+                for (var bindingIndex = 0; bindingIndex < bindings.Count; bindingIndex++)
+                {
+                    var preferenceKey = $"{name}_binding{bindingIndex}";
+                    Globals.Database.SavePreference(preferenceKey, JsonConvert.SerializeObject(bindings[bindingIndex]));
+                }
             }
         }
 
@@ -114,15 +140,15 @@ namespace Intersect.Client.Core.Controls
             return false;
         }
 
-        public static List<Control> GetControlsFor(Keys key)
+        public static List<Control> GetControlsFor(Keys modifier, Keys key)
         {
             return Enum.GetValues(typeof(Control))
                 .Cast<Control>()
-                .Where(control => ControlHasKey(control, key))
+                .Where(control => ControlHasKey(control, modifier, key))
                 .ToList();
         }
 
-        public static bool ControlHasKey(Control control, Keys key)
+        public static bool ControlHasKey(Control control, Keys modifier, Keys key)
         {
             if (key == Keys.None)
             {
@@ -136,10 +162,10 @@ namespace Intersect.Client.Core.Controls
 
             var mapping = ActiveControls.ControlMapping[control];
 
-            return mapping?.Key1 == key || mapping?.Key2 == key;
+            return mapping?.Bindings.Any(binding => binding.Modifier == modifier && binding.Key == key) ?? false;
         }
 
-        public void UpdateControl(Control control, int keyNum, Keys key)
+        public void UpdateControl(Control control, int keyNum, Keys modifier, Keys key)
         {
             var mapping = ControlMapping[control];
             if (mapping == null)
@@ -147,26 +173,18 @@ namespace Intersect.Client.Core.Controls
                 return;
             }
 
-            if (keyNum == 1)
-            {
-                mapping.Key1 = key;
-            }
-            else
-            {
-                mapping.Key2 = key;
-            }
+            mapping.Bindings[keyNum].Modifier = modifier;
+            mapping.Bindings[keyNum].Key = key;
         }
 
-        private void CreateControlMap(Control control, Keys key1, Keys key2)
+        private void CreateControlMap(Control control, ControlValue binding, params ControlValue[] alternateBindings)
         {
-            if (ControlMapping.ContainsKey(control))
-            {
-                ControlMapping[control] = new ControlMap(control, key1, key2);
-            }
-            else
-            {
-                ControlMapping.Add(control, new ControlMap(control, key1, key2));
-            }
+            ControlMapping[control] = new ControlMap(binding, alternateBindings);
+        }
+
+        private void CreateControlMap(Control control, ControlMap controlMap)
+        {
+            ControlMapping[control] = new ControlMap(controlMap);
         }
 
     }

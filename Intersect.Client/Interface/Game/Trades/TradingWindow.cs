@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Intersect.Client.Core;
 using Intersect.Client.Framework.File_Management;
 using Intersect.Client.Framework.GenericClasses;
+using Intersect.Client.Framework.Graphics;
 using Intersect.Client.Framework.Gwen.Control;
 using Intersect.Client.Framework.Gwen.Control.EventArguments;
 using Intersect.Client.General;
@@ -14,7 +15,7 @@ using Intersect.GameObjects;
 namespace Intersect.Client.Interface.Game.Trades
 {
 
-    public class TradingWindow
+    public partial class TradingWindow
     {
 
         private static int sItemXPadding = 4;
@@ -32,6 +33,11 @@ namespace Intersect.Client.Interface.Game.Trades
         private Label mYourOffer;
 
         public List<TradeSegment> TradeSegment = new List<TradeSegment>();
+
+        // Context menu
+        private Framework.Gwen.Control.Menu mContextMenu;
+
+        private MenuItem mWithdrawContextItem;
 
         //Init
         public TradingWindow(Canvas gameCanvas, string traderName)
@@ -68,6 +74,44 @@ namespace Intersect.Client.Interface.Game.Trades
             {
                 TradeSegment[i].InitItemContainer(i);
             }
+
+            // Generate our context menu with basic options.
+            mContextMenu = new Framework.Gwen.Control.Menu(gameCanvas, "TradeContextMenu");
+            mContextMenu.IsHidden = true;
+            mContextMenu.IconMarginDisabled = true;
+            //TODO: Is this a memory leak?
+            mContextMenu.Children.Clear();
+            mWithdrawContextItem = mContextMenu.AddItem(Strings.TradeContextMenu.Withdraw);
+            mWithdrawContextItem.Clicked += MWithdrawContextItem_Clicked;
+            mContextMenu.LoadJsonUi(GameContentManager.UI.InGame, Graphics.Renderer.GetResolutionString());
+        }
+
+        private void MWithdrawContextItem_Clicked(Base sender, ClickedEventArgs arguments)
+        {
+            var slot = (int) sender.Parent.UserData;
+            Globals.Me.TryRevokeItem(slot);
+        }
+
+        public void OpenContextMenu(int side, int slot)
+        {
+            var item = ItemBase.Get(Globals.Trade[side, slot].ItemId);
+
+            // No point showing a menu for blank space.
+            if (item == null)
+            {
+                return;
+            }
+
+            mWithdrawContextItem.SetText(Strings.TradeContextMenu.Withdraw.ToString(item.Name));
+
+            // Set our spell slot as userdata for future reference.
+            mContextMenu.UserData = slot ;
+
+            mContextMenu.IsHidden = false;
+            mContextMenu.SetSize(mContextMenu.Width, mContextMenu.Height);
+            mContextMenu.SizeToChildren();
+            mContextMenu.Open(Framework.Gwen.Pos.None);
+            mContextMenu.MoveTo(mContextMenu.X, mContextMenu.Y);
         }
 
         //Location
@@ -106,28 +150,31 @@ namespace Intersect.Client.Interface.Game.Trades
                     if (Globals.Trade[n, i] != null && Globals.Trade[n, i].ItemId != Guid.Empty)
                     {
                         var item = ItemBase.Get(Globals.Trade[n, i].ItemId);
-                        if (item != null)
+                        if (item == null)
                         {
-                            g += item.Price * Globals.Trade[n, i].Quantity;
-                            TradeSegment[n].Items[i].Pnl.IsHidden = false;
-                            if (item.IsStackable)
-                            {
-                                TradeSegment[n].Values[i].IsHidden = false;
-                                TradeSegment[n].Values[i].Text = Globals.Trade[n, i].Quantity.ToString();
-                            }
-                            else
-                            {
-                                TradeSegment[n].Values[i].IsHidden = true;
-                            }
-
-                            if (TradeSegment[n].Items[i].IsDragging)
-                            {
-                                TradeSegment[n].Items[i].Pnl.IsHidden = true;
-                                TradeSegment[n].Values[i].IsHidden = true;
-                            }
-
-                            TradeSegment[n].Items[i].Update();
+                            continue;
                         }
+
+                        g += item.Price * Globals.Trade[n, i].Quantity;
+                        TradeSegment[n].Items[i].Pnl.IsHidden = false;
+                        if (item.IsStackable)
+                        {
+                            TradeSegment[n].Values[i].IsHidden = Globals.Trade[n, i].Quantity <= 1;
+                            TradeSegment[n].Values[i].Text =
+                                Strings.FormatQuantityAbbreviated(Globals.Trade[n, i].Quantity);
+                        }
+                        else
+                        {
+                            TradeSegment[n].Values[i].IsHidden = true;
+                        }
+
+                        if (TradeSegment[n].Items[i].IsDragging)
+                        {
+                            TradeSegment[n].Items[i].Pnl.IsHidden = true;
+                            TradeSegment[n].Values[i].IsHidden = true;
+                        }
+
+                        TradeSegment[n].Items[i].Update();
                     }
                     else
                     {

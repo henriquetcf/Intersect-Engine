@@ -5,20 +5,18 @@ using System.Web.Http.Routing;
 
 using Intersect.Enums;
 
-using JetBrains.Annotations;
-
 namespace Intersect.Server.Web.RestApi.Constraints
 {
 
-    internal sealed class AdminActionsConstraint : IHttpRouteConstraint
+    internal sealed partial class AdminActionsConstraint : IHttpRouteConstraint
     {
 
         /// <inheritdoc />
         public bool Match(
             HttpRequestMessage request,
             IHttpRoute route,
-            [NotNull] string parameterName,
-            [NotNull] IDictionary<string, object> values,
+            string parameterName,
+            IDictionary<string, object> values,
             HttpRouteDirection routeDirection
         )
         {

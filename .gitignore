@@ -215,3 +215,8 @@ pip-log.txt
 packages/
 
 .vs/
+.idea
+
+
+/assets/**
+!/assets/*.*

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
@@ -11,8 +11,6 @@ using Intersect.GameObjects.Maps.MapList;
 using Intersect.Server.Database.GameData.Migrations;
 using Intersect.Server.Maps;
 
-using JetBrains.Annotations;
-
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Internal;
@@ -20,29 +18,27 @@ using Microsoft.EntityFrameworkCore.Internal;
 namespace Intersect.Server.Database.GameData
 {
 
-    public class GameContext : IntersectDbContext<GameContext>
+    public partial class GameContext : IntersectDbContext<GameContext>, IGameContext
     {
 
         public GameContext() : base(DefaultConnectionStringBuilder)
         {
-            Current = this;
+
         }
 
         public GameContext(
-            [NotNull] DbConnectionStringBuilder connectionStringBuilder,
+            DbConnectionStringBuilder connectionStringBuilder,
             DatabaseOptions.DatabaseType databaseType,
+            bool readOnly = false,
             Intersect.Logging.Logger logger = null,
             Intersect.Logging.LogLevel logLevel = Intersect.Logging.LogLevel.None
-        ) : base(connectionStringBuilder, databaseType, false, logger, logLevel)
+        ) : base(connectionStringBuilder, databaseType, logger, logLevel, readOnly, false)
         {
-            Current = this;
+
         }
 
-        [NotNull]
         public static DbConnectionStringBuilder DefaultConnectionStringBuilder =>
             new SqliteConnectionStringBuilder(@"Data Source=resources/gamedata.db");
-
-        public static GameContext Current { get; private set; }
 
         //Animations
         public DbSet<AnimationBase> Animations { get; set; }
@@ -62,7 +58,7 @@ namespace Intersect.Server.Database.GameData
         public DbSet<ItemBase> Items { get; set; }
 
         //Maps
-        public DbSet<MapInstance> Maps { get; set; }
+        public DbSet<MapController> Maps { get; set; }
 
         public DbSet<MapList> MapFolders { get; set; }
 
@@ -89,15 +85,15 @@ namespace Intersect.Server.Database.GameData
 
         public DbSet<ServerVariableBase> ServerVariables { get; set; }
 
+        public DbSet<GuildVariableBase> GuildVariables { get; set; }
+
+        public DbSet<UserVariableBase> UserVariables { get; set; }
+
         //Tilesets
         public DbSet<TilesetBase> Tilesets { get; set; }
 
         //Time
         public DbSet<TimeBase> Time { get; set; }
-
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
-        }
 
         public override void MigrationsProcessed(string[] migrations)
         {
@@ -105,30 +101,34 @@ namespace Intersect.Server.Database.GameData
             {
                 Beta6Migration.Run(this);
             }
+
+            if (migrations.IndexOf("20201004032158_EnablingCerasVersionTolerance") > -1)
+            {
+                CerasVersionToleranceMigration.Run(this);
+            }
+
+            if (migrations.IndexOf("20210512071349_BoundItemExtension") > -1)
+            {
+                BoundItemExtensionMigration.Run(this);
+            }
+
+            if (migrations.IndexOf("20211031200145_FixQuestTaskCompletionEvents") > -1)
+            {
+                FixQuestTaskCompletionEventsMigration.Run(this);
+            }
+
         }
 
-        internal static class Queries
+        internal static partial class Queries
         {
+            internal static readonly Func<Guid, ServerVariableBase> ServerVariableById =
+                (Guid id) => (ServerVariableBase)ServerVariableBase.Lookup.FirstOrDefault(variable => variable.Key == id).Value;
 
-            [NotNull] internal static readonly Func<GameContext, Guid, ServerVariableBase> ServerVariableById =
-                EF.CompileQuery(
-                    (GameContext context, Guid id) =>
-                        context.ServerVariables.FirstOrDefault(variable => variable.Id == id)
-                ) ??
-                throw new InvalidOperationException();
+            internal static readonly Func<string, ServerVariableBase> ServerVariableByName =
+                (string name) => (ServerVariableBase)ServerVariableBase.Lookup.FirstOrDefault(variable => string.Equals(variable.Value.Name, name, StringComparison.OrdinalIgnoreCase)).Value;
 
-            [NotNull]
-            internal static readonly Func<GameContext, int, int, IEnumerable<ServerVariableBase>> ServerVariables =
-                EF.CompileQuery(
-                    (GameContext context, int page, int count) => context.ServerVariables
-                        .OrderBy(variable => variable.Id.ToString())
-                        .Skip(page * count)
-                        .Take(count)
-                ) ??
-                throw new InvalidOperationException();
-
+            internal static readonly Func<int, int, IEnumerable<ServerVariableBase>> ServerVariables =
+                (int page, int count) => ServerVariableBase.Lookup.Select(v => (ServerVariableBase)v.Value).OrderBy(v => v.Id.ToString()).Skip(page * count).Take(count);
         }
-
     }
-
 }

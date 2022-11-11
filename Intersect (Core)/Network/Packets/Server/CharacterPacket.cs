@@ -1,10 +1,25 @@
-﻿using System;
+using MessagePack;
+using System;
 
 namespace Intersect.Network.Packets.Server
 {
-
-    public class CharacterPacket : CerasPacket
+    [MessagePackObject]
+    public partial class EquipmentFragment
     {
+        [Key(0)]
+        public string Name { get; set; }
+
+        [Key(1)]
+        public Color RenderColor { get; set; }
+    }
+
+    [MessagePackObject]
+    public partial class CharacterPacket : IntersectPacket
+    {
+        //Parameterless Constructor for MessagePack
+        public CharacterPacket()
+        {
+        }
 
         public CharacterPacket(
             Guid id,
@@ -13,7 +28,7 @@ namespace Intersect.Network.Packets.Server
             string face,
             int level,
             string className,
-            string[] equipment
+            EquipmentFragment[] equipment
         )
         {
             Id = id;
@@ -25,19 +40,26 @@ namespace Intersect.Network.Packets.Server
             Equipment = equipment;
         }
 
+        [Key(0)]
         public Guid Id { get; set; }
 
+        [Key(1)]
         public string Name { get; set; }
 
+        [Key(2)]
         public string Sprite { get; set; }
 
+        [Key(3)]
         public string Face { get; set; }
 
+        [Key(4)]
         public int Level { get; set; }
 
+        [Key(5)]
         public string ClassName { get; set; }
 
-        public string[] Equipment { get; set; }
+        [Key(6)]
+        public EquipmentFragment[] Equipment { get; set; }
 
     }
 

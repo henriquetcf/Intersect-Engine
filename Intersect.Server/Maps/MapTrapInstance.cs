@@ -1,20 +1,24 @@
-﻿using System;
+using System;
 
 using Intersect.GameObjects;
 using Intersect.Server.Entities;
 using Intersect.Server.Entities.Events;
 using Intersect.Server.General;
 using Intersect.Server.Maps;
+using Intersect.Utilities;
 
 namespace Intersect.Server.Classes.Maps
 {
 
-    public class MapTrapInstance
+    public partial class MapTrapInstance
     {
+        public Guid Id { get; } = Guid.NewGuid();
 
         private long Duration;
 
         public Guid MapId;
+        
+        public Guid MapInstanceId;
 
         public Entity Owner;
 
@@ -28,12 +32,13 @@ namespace Intersect.Server.Classes.Maps
 
         public byte Z;
 
-        public MapTrapInstance(Entity owner, SpellBase parentSpell, Guid mapId, byte x, byte y, byte z)
+        public MapTrapInstance(Entity owner, SpellBase parentSpell, Guid mapId, Guid mapInstanceId, byte x, byte y, byte z)
         {
             Owner = owner;
             ParentSpell = parentSpell;
-            Duration = Globals.Timing.Milliseconds + ParentSpell.Combat.TrapDuration;
+            Duration = Timing.Global.Milliseconds + ParentSpell.Combat.TrapDuration;
             MapId = mapId;
+            MapInstanceId = mapInstanceId;
             X = x;
             Y = y;
             Z = z;
@@ -45,10 +50,10 @@ namespace Intersect.Server.Classes.Maps
             {
                 if (entity.MapId == MapId && entity.X == X && entity.Y == Y && entity.Z == Z)
                 {
-                    if (entity.GetType() == typeof(Player) && Owner.GetType() == typeof(Player))
+                    if (entity is Player entityPlayer && Owner is Player ownerPlayer)
                     {
                         //Don't detonate on yourself and party members on non-friendly spells!
-                        if (Owner == entity || ((Player) Owner).InParty((Player) entity))
+                        if (Owner == entity || ownerPlayer.InParty(entityPlayer))
                         {
                             if (!ParentSpell.Combat.Friendly)
                             {
@@ -70,14 +75,17 @@ namespace Intersect.Server.Classes.Maps
 
         public void Update()
         {
-            if (Triggered)
+            if (MapController.TryGetInstanceFromMap(MapId, MapInstanceId, out var mapInstance))
             {
-                MapInstance.Get(MapId).RemoveTrap(this);
-            }
+                if (Triggered)
+                {
+                    mapInstance.RemoveTrap(this);
+                }
 
-            if (Globals.Timing.Milliseconds > Duration)
-            {
-                MapInstance.Get(MapId).RemoveTrap(this);
+                if (Timing.Global.Milliseconds > Duration)
+                {
+                    mapInstance.RemoveTrap(this);
+                }
             }
         }
 

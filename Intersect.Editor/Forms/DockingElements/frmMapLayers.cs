@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
-
+using Intersect.Config;
 using Intersect.Editor.Content;
 using Intersect.Editor.General;
 using Intersect.Editor.Localization;
@@ -12,9 +12,8 @@ using Intersect.Enums;
 using Intersect.GameObjects;
 using Intersect.GameObjects.Maps;
 using Intersect.GameObjects.Maps.MapList;
+using Intersect.Localization;
 using Intersect.Utilities;
-
-using JetBrains.Annotations;
 
 using Microsoft.Xna.Framework.Graphics;
 
@@ -43,12 +42,12 @@ namespace Intersect.Editor.Forms.DockingElements
 
         public LayerTabs CurrentTab = LayerTabs.Tiles;
 
-        public List<bool> LayerVisibility = new List<bool>();
+        public Dictionary<string, bool> LayerVisibility = new Dictionary<string,bool>();
 
         //MonoGame Swap Chain
         private SwapChainRenderTarget mChain;
 
-        private int mLastTileLayer;
+        private string mLastTileLayer;
 
         private List<PictureBox> mMapLayers = new List<PictureBox>();
 
@@ -57,30 +56,76 @@ namespace Intersect.Editor.Forms.DockingElements
         public FrmMapLayers()
         {
             InitializeComponent();
-            mMapLayers.Add(picGround);
-            LayerVisibility.Add(true);
-            mMapLayers.Add(picMask);
-            LayerVisibility.Add(true);
-            mMapLayers.Add(picMask2);
-            LayerVisibility.Add(true);
-            mMapLayers.Add(picFringe);
-            LayerVisibility.Add(true);
-            mMapLayers.Add(picFringe2);
-            LayerVisibility.Add(true);
+            Icon = System.Drawing.Icon.ExtractAssociatedIcon(System.Reflection.Assembly.GetExecutingAssembly().Location);
+
+            mMapLayers.Add(picLayer1);
+            mMapLayers.Add(picLayer2);
+            mMapLayers.Add(picLayer3);
+            mMapLayers.Add(picLayer4);
+            mMapLayers.Add(picLayer5);
         }
 
         public void Init()
         {
             cmbAutotile.SelectedIndex = 0;
-            SetLayer(0);
+
+            //See if we can use the old style icons instead of a combobox
+            if (Options.Instance.MapOpts.Layers.All.Count <= mMapLayers.Count)
+            {
+                //Hide combobox...
+                cmbMapLayer.Hide();
+                for (int i = 0; i < mMapLayers.Count; i++)
+                {
+                    if (i < Options.Instance.MapOpts.Layers.All.Count)
+                    {
+                        Strings.Tiles.maplayers.TryGetValue(Options.Instance.MapOpts.Layers.All[i].ToLower(), out LocalizedString layerName);
+                        if (layerName == null) layerName = Options.Instance.MapOpts.Layers.All[i];
+                        mMapLayers[i].Text = layerName;
+                        mMapLayers[i].Show();
+                    }
+                    else
+                    {
+                        mMapLayers[i].Hide();
+                    }
+                }
+            }
+            else
+            {
+                foreach(var layer in mMapLayers)
+                {
+                    layer.Hide();
+                }
+                //Show Combobox
+                cmbMapLayer.Show();
+                cmbMapLayer.Items.AddRange(Options.Instance.MapOpts.Layers.All.ToArray());
+                cmbMapLayer.SelectedIndex = 0;
+            }
+
+            foreach (var layer in Options.Instance.MapOpts.Layers.All)
+            {
+                LayerVisibility.Add(layer, true);
+            }
+
+            SetLayer(Options.Instance.MapOpts.Layers.All[0]);
             if (cmbTilesets.Items.Count > 0)
             {
                 SetTileset(cmbTilesets.Items[0].ToString());
             }
 
-            grpZDimension.Visible = Options.ZDimensionVisible;
             rbZDimension.Visible = Options.ZDimensionVisible;
             grpZResource.Visible = Options.ZDimensionVisible;
+            grpInstanceSettings.Visible = chkChangeInstance.Checked;
+
+            cmbInstanceType.Items.Clear();
+            // We do not want to iterate over the "NoChange" enum
+            foreach (MapInstanceType instanceType in Enum.GetValues(typeof(MapInstanceType)))
+            {
+                cmbInstanceType.Items.Add(instanceType.ToString());
+            }
+            cmbInstanceType.SelectedIndex = 0;
+
+            cmbWarpSound.Items.Clear();
+            RefreshMapWarpSounds();
         }
 
         //Tiles Tab
@@ -303,48 +348,102 @@ namespace Intersect.Editor.Forms.DockingElements
             }
         }
 
-        public void SetLayer(int index)
+        public void SetLayer(string name)
         {
-            Globals.CurrentLayer = index;
-            if (index < Options.LayerCount)
+            Globals.CurrentLayer = name;
+
+            var index = Options.Instance.MapOpts.Layers.All.IndexOf(name);
+
+            if (!cmbMapLayer.Visible)
             {
                 for (var i = 0; i < mMapLayers.Count; i++)
                 {
-                    if (i == index)
+                    if (mMapLayers[i].BackgroundImage != null)
                     {
-                        if (!LayerVisibility[i])
-                        {
-                            mMapLayers[i].BackgroundImage =
-                                (Bitmap) Properties.Resources.ResourceManager.GetObject("_" + (i + 1) + "_A_Hide");
-                        }
-                        else
-                        {
-                            mMapLayers[i].BackgroundImage =
-                                (Bitmap) Properties.Resources.ResourceManager.GetObject("_" + (i + 1) + "_A");
-                        }
+                        mMapLayers[i].BackgroundImage.Dispose();
+                        mMapLayers[i].BackgroundImage = null;
                     }
-                    else
-                    {
-                        if (!LayerVisibility[i])
-                        {
-                            mMapLayers[i].BackgroundImage =
-                                (Bitmap) Properties.Resources.ResourceManager.GetObject("_" + (i + 1) + "_B_Hide");
-                        }
-                        else
-                        {
-                            mMapLayers[i].BackgroundImage =
-                                (Bitmap) Properties.Resources.ResourceManager.GetObject("_" + (i + 1) + "_B");
-                        }
-                    }
+                    mMapLayers[i].BackgroundImage = DrawLayerImage(i, i == index, !LayerVisibility[Options.Instance.MapOpts.Layers.All[i]]);
                 }
-
-                mLastTileLayer = index;
             }
             else
             {
+                if (cmbMapLayer.Items.IndexOf(name) > -1)
+                {
+                    cmbMapLayer.SelectedIndex = cmbMapLayer.Items.IndexOf(name);
+                }
             }
 
+            mLastTileLayer = name;
+
             Core.Graphics.TilePreviewUpdated = true;
+        }
+
+        private Bitmap DrawLayerImage(int layerIndex, bool selected, bool hidden)
+        {
+            var img = new Bitmap(32, 32);
+            img.MakeTransparent(img.GetPixel(0, 0));
+
+            var g = Graphics.FromImage(img);
+
+            var layer = (Bitmap)Properties.Resources.ResourceManager.GetObject("layer");
+            var layerSel = (Bitmap)Properties.Resources.ResourceManager.GetObject("layer_sel");
+            var face = (Bitmap)Properties.Resources.ResourceManager.GetObject("layer_face");
+            var faceSel = (Bitmap)Properties.Resources.ResourceManager.GetObject("layer_face_sel");
+            var hiddenIcon = (Bitmap)Properties.Resources.ResourceManager.GetObject("layer_hidden");
+            var drawFace = selected ? faceSel : face;
+
+            var drawIndex = 0;
+
+            //Draw Lower & Middle Layers
+            foreach (var l in Options.Instance.MapOpts.Layers.LowerLayers)
+            {
+                var drawImg = layer;
+                if (drawIndex == layerIndex)
+                {
+                    drawImg = layerSel;
+                }
+                g.DrawImage(drawImg, new PointF(3, 23 - ((drawIndex) * (layer.Height - 4))));
+                drawIndex++;
+            }
+
+
+            //If this image for is an upper layer, render the face below the next layers
+            if (!Options.Instance.MapOpts.Layers.LowerLayers.Contains(Options.Instance.MapOpts.Layers.All[layerIndex]))
+            {
+                g.DrawImage(drawFace, new PointF(13, 13));
+            }
+
+
+            //Draw Upper Layers
+            var middleUpperLayers = Options.Instance.MapOpts.Layers.LowerLayers.ToList();
+            middleUpperLayers.AddRange(Options.Instance.MapOpts.Layers.MiddleLayers);
+            foreach (var l in middleUpperLayers)
+            {
+                var drawImg = layer;
+                if (drawIndex == layerIndex)
+                {
+                    drawImg = layerSel;
+                }
+                g.DrawImage(drawImg, new PointF(3, 23 - ((drawIndex) * (layer.Height - 4))));
+                drawIndex++;
+            }
+
+            //If this image for is a lower layer, render the face above everything
+            if (Options.Instance.MapOpts.Layers.LowerLayers.Contains(Options.Instance.MapOpts.Layers.All[layerIndex]))
+            {
+                g.DrawImage(drawFace, new PointF(13, 13));
+            }
+
+
+            //Draw Hidden Icon
+            if (hidden)
+            {
+                g.DrawImage(hiddenIcon, new PointF(32 - hiddenIcon.Width, 0));
+            }
+
+            g.Dispose();
+            return img;
         }
 
         //Mapping Attribute Functions
@@ -360,6 +459,7 @@ namespace Intersect.Editor.Forms.DockingElements
             grpResource.Visible = false;
             grpAnimation.Visible = false;
             grpSlide.Visible = false;
+            grpCritter.Visible = false;
         }
 
         private void rbItem_CheckedChanged(object sender, EventArgs e)
@@ -372,6 +472,7 @@ namespace Intersect.Editor.Forms.DockingElements
             {
                 cmbItemAttribute.SelectedIndex = 0;
             }
+            nudItemRespawnTime.Value = 0;
         }
 
         private void rbBlocked_CheckedChanged(object sender, EventArgs e)
@@ -408,6 +509,7 @@ namespace Intersect.Editor.Forms.DockingElements
             }
 
             HideAttributeMenus();
+            RefreshMapWarpSounds();
             grpWarp.Visible = true;
         }
 
@@ -416,7 +518,7 @@ namespace Intersect.Editor.Forms.DockingElements
             HideAttributeMenus();
             grpSound.Visible = true;
             cmbMapAttributeSound.Items.Clear();
-            cmbMapAttributeSound.Items.Add(Strings.General.none);
+            cmbMapAttributeSound.Items.Add(Strings.General.None);
             cmbMapAttributeSound.Items.AddRange(GameContentManager.SmartSortedSoundNames);
             cmbMapAttributeSound.SelectedIndex = 0;
         }
@@ -510,6 +612,10 @@ namespace Intersect.Editor.Forms.DockingElements
             {
                 return (int) MapAttributes.Slide;
             }
+            else if (rbCritter.Checked == true)
+            {
+                return (int) MapAttributes.Critter;
+            }
 
             return (int) MapAttributes.Walkable;
         }
@@ -522,7 +628,7 @@ namespace Intersect.Editor.Forms.DockingElements
                 {
                     return MapAttributes.Blocked;
                 }
-                
+
                 if (rbItem.Checked)
                 {
                     return MapAttributes.Item;
@@ -568,12 +674,16 @@ namespace Intersect.Editor.Forms.DockingElements
                     return MapAttributes.Slide;
                 }
 
+                if (rbCritter.Checked)
+                {
+                    return MapAttributes.Critter;
+                }
+
                 return (MapAttributes) byte.MaxValue;
             }
         }
 
         [Obsolete("The entire switch statement should be implemented as a parameterized CreateAttribute().")]
-        [NotNull]
         public MapAttribute CreateAttribute()
         {
             var attributeType = SelectedMapAttributeType;
@@ -590,6 +700,7 @@ namespace Intersect.Editor.Forms.DockingElements
                     var itemAttribute = attribute as MapItemAttribute;
                     itemAttribute.ItemId = ItemBase.IdFromList(cmbItemAttribute.SelectedIndex);
                     itemAttribute.Quantity = (int)nudItemQuantity.Value;
+                    itemAttribute.RespawnTime = (long)nudItemRespawnTime.Value;
                     break;
 
                 case MapAttributes.ZDimension:
@@ -604,12 +715,16 @@ namespace Intersect.Editor.Forms.DockingElements
                     warpAttribute.X = (byte)nudWarpX.Value;
                     warpAttribute.Y = (byte)nudWarpY.Value;
                     warpAttribute.Direction = (WarpDirection)cmbDirection.SelectedIndex;
+                    warpAttribute.ChangeInstance = chkChangeInstance.Checked;
+                    warpAttribute.InstanceType = (MapInstanceType)cmbInstanceType.SelectedIndex;
+                    warpAttribute.WarpSound = TextUtils.SanitizeNone(cmbWarpSound.Text);
                     break;
 
                 case MapAttributes.Sound:
                     var soundAttribute = attribute as MapSoundAttribute;
                     soundAttribute.Distance = (byte)nudSoundDistance.Value;
                     soundAttribute.File = TextUtils.SanitizeNone(cmbMapAttributeSound.Text);
+                    soundAttribute.LoopInterval = (int)nudSoundLoopInterval.Value;
                     break;
 
                 case MapAttributes.Resource:
@@ -621,11 +736,25 @@ namespace Intersect.Editor.Forms.DockingElements
                 case MapAttributes.Animation:
                     var animationAttribute = attribute as MapAnimationAttribute;
                     animationAttribute.AnimationId = AnimationBase.IdFromList(cmbAnimationAttribute.SelectedIndex);
+                    animationAttribute.IsBlock = chkAnimationBlock.Checked;
                     break;
 
                 case MapAttributes.Slide:
                     var slideAttribute = attribute as MapSlideAttribute;
                     slideAttribute.Direction = (byte)cmbSlideDir.SelectedIndex;
+                    break;
+
+                case MapAttributes.Critter:
+                    var critterAttribute = attribute as MapCritterAttribute;
+                    critterAttribute.Sprite = cmbCritterSprite.Text;
+                    critterAttribute.AnimationId = AnimationBase.IdFromList(cmbCritterAnimation.SelectedIndex - 1);
+                    critterAttribute.Movement = (byte)cmbCritterMovement.SelectedIndex;
+                    critterAttribute.Layer = (byte)cmbCritterLayer.SelectedIndex;
+                    critterAttribute.Speed = (int)nudCritterMoveSpeed.Value;
+                    critterAttribute.Frequency = (int)nudCritterMoveFrequency.Value;
+                    critterAttribute.IgnoreNpcAvoids = chkCritterIgnoreNpcAvoids.Checked;
+                    critterAttribute.BlockPlayers = chkCritterBlockPlayers.Checked;
+                    critterAttribute.Direction = (byte)cmbCritterDirection.SelectedIndex;
                     break;
 
                 default:
@@ -737,6 +866,8 @@ namespace Intersect.Editor.Forms.DockingElements
                 {
                     lstMapNpcs.SelectedIndex = 0;
                 }
+
+                Core.Graphics.TilePreviewUpdated = true;
             }
         }
 
@@ -849,6 +980,37 @@ namespace Intersect.Editor.Forms.DockingElements
             grpAnimation.Visible = true;
         }
 
+        private void rbCritter_CheckedChanged(object sender, EventArgs e)
+        {
+            cmbCritterAnimation.Items.Clear();
+            cmbCritterAnimation.Items.Add(Strings.General.None);
+            cmbCritterAnimation.Items.AddRange(AnimationBase.Names);
+            cmbCritterAnimation.SelectedIndex = 0;
+
+            cmbCritterSprite.Items.Clear();
+            cmbCritterSprite.Items.Add(Strings.General.None);
+            cmbCritterSprite.Items.AddRange(GameContentManager.GetSmartSortedTextureNames(GameContentManager.TextureType.Entity));
+            cmbCritterSprite.SelectedIndex = 0;
+
+            if (nudCritterMoveFrequency.Value == 0)
+            {
+                nudCritterMoveFrequency.Value = 1000;
+            }
+
+            if (nudCritterMoveSpeed.Value == 0)
+            {
+                nudCritterMoveSpeed.Value = 400;
+            }
+
+            if (!rbCritter.Checked)
+            {
+                return;
+            }
+
+            HideAttributeMenus();
+            grpCritter.Visible = true;
+        }
+
         private void frmMapLayers_Load(object sender, EventArgs e)
         {
             CreateSwapChain();
@@ -882,24 +1044,26 @@ namespace Intersect.Editor.Forms.DockingElements
             cmbAutotile.Items.Add(Strings.Tiles.animatedxp);
 
             //Attributes Panel
-            rbBlocked.Text = Strings.Attributes.blocked;
-            rbZDimension.Text = Strings.Attributes.zdimension;
-            rbNPCAvoid.Text = Strings.Attributes.npcavoid;
-            rbWarp.Text = Strings.Attributes.warp;
-            rbItem.Text = Strings.Attributes.itemspawn;
-            rbSound.Text = Strings.Attributes.mapsound;
-            rbResource.Text = Strings.Attributes.resourcespawn;
-            rbAnimation.Text = Strings.Attributes.mapanimation;
-            rbGrappleStone.Text = Strings.Attributes.grapple;
-            rbSlide.Text = Strings.Attributes.slide;
+            rbBlocked.Text = Strings.Attributes.Blocked;
+            rbZDimension.Text = Strings.Attributes.ZDimension;
+            rbNPCAvoid.Text = Strings.Attributes.NpcAvoid;
+            rbWarp.Text = Strings.Attributes.Warp;
+            rbItem.Text = Strings.Attributes.ItemSpawn;
+            rbSound.Text = Strings.Attributes.MapSound;
+            rbResource.Text = Strings.Attributes.ResourceSpawn;
+            rbAnimation.Text = Strings.Attributes.MapAnimation;
+            rbGrappleStone.Text = Strings.Attributes.Grapple;
+            rbSlide.Text = Strings.Attributes.Slide;
+            rbCritter.Text = Strings.Attributes.Critter;
 
             //Map Animation Groupbox
-            grpAnimation.Text = Strings.Attributes.mapanimation;
-            lblAnimation.Text = Strings.Attributes.mapanimation;
+            grpAnimation.Text = Strings.Attributes.MapAnimation;
+            lblAnimation.Text = Strings.Attributes.MapAnimation;
+            chkAnimationBlock.Text = Strings.Attributes.MapAnimationBlock;
 
             //Slide Groupbox
-            grpSlide.Text = Strings.Attributes.slide;
-            lblSlideDir.Text = Strings.Attributes.dir;
+            grpSlide.Text = Strings.Attributes.Slide;
+            lblSlideDir.Text = Strings.Attributes.Direction;
             cmbSlideDir.Items.Clear();
             for (var i = -1; i < 4; i++)
             {
@@ -907,29 +1071,33 @@ namespace Intersect.Editor.Forms.DockingElements
             }
 
             //Map Sound
-            grpSound.Text = Strings.Attributes.mapsound;
-            lblMapSound.Text = Strings.Attributes.sound;
-            lblSoundDistance.Text = Strings.Attributes.distance;
+            grpSound.Text = Strings.Attributes.MapSound;
+            lblMapSound.Text = Strings.Attributes.Sound;
+            lblSoundDistance.Text = Strings.Attributes.Distance;
+            lblSoundInterval.Text = Strings.Attributes.SoundInterval;
 
             //Map Item
-            grpItem.Text = Strings.Attributes.itemspawn;
-            lblMapItem.Text = Strings.Attributes.item;
-            lblMaxItemAmount.Text = Strings.Attributes.quantity;
+            grpItem.Text = Strings.Attributes.ItemSpawn;
+            lblMapItem.Text = Strings.Attributes.Item;
+            lblMaxItemAmount.Text = Strings.Attributes.Quantity;
+            lblItemRespawnTime.Text = Strings.Attributes.RespawnTime;
+            tooltips.SetToolTip(lblItemRespawnTime, Strings.Attributes.RespawnTimeTooltip);
+            tooltips.SetToolTip(nudItemRespawnTime, Strings.Attributes.RespawnTimeTooltip);
 
             //Z-Dimension
-            grpZDimension.Text = Strings.Attributes.zdimension;
-            grpGateway.Text = Strings.Attributes.zgateway;
-            grpDimBlock.Text = Strings.Attributes.zblock;
-            rbGatewayNone.Text = Strings.Attributes.znone;
-            rbGateway1.Text = Strings.Attributes.zlevel1;
-            rbGateway2.Text = Strings.Attributes.zlevel2;
-            rbBlockNone.Text = Strings.Attributes.znone;
-            rbBlock1.Text = Strings.Attributes.zlevel1;
-            rbBlock2.Text = Strings.Attributes.zlevel2;
+            grpZDimension.Text = Strings.Attributes.ZDimension;
+            grpGateway.Text = Strings.Attributes.ZGateway;
+            grpDimBlock.Text = Strings.Attributes.ZBlock;
+            rbGatewayNone.Text = Strings.Attributes.ZNone;
+            rbGateway1.Text = Strings.Attributes.ZLevel1;
+            rbGateway2.Text = Strings.Attributes.ZLevel2;
+            rbBlockNone.Text = Strings.Attributes.ZNone;
+            rbBlock1.Text = Strings.Attributes.ZLevel1;
+            rbBlock2.Text = Strings.Attributes.ZLevel2;
 
             //Warp
-            grpWarp.Text = Strings.Attributes.warp;
-            lblMap.Text = Strings.Warping.map.ToString("");
+            grpWarp.Text = Strings.Attributes.Warp;
+            lblMap.Text = Strings.Attributes.Map;
             lblX.Text = Strings.Warping.x.ToString("");
             lblY.Text = Strings.Warping.y.ToString("");
             lblWarpDir.Text = Strings.Warping.direction.ToString("");
@@ -938,15 +1106,53 @@ namespace Intersect.Editor.Forms.DockingElements
             {
                 cmbDirection.Items.Add(Strings.Directions.dir[i]);
             }
+            lblInstance.Text = Strings.Warping.InstanceType;
+            chkChangeInstance.Text = Strings.Warping.ChangeInstance;
+            grpInstanceSettings.Text = Strings.Warping.MapInstancingGroup;
+            lblWarpSound.Text = Strings.Warping.WarpSound;
 
             btnVisualMapSelector.Text = Strings.Warping.visual;
 
             //Resource
-            grpResource.Text = Strings.Attributes.resourcespawn;
-            lblResource.Text = Strings.Attributes.resource;
-            grpZResource.Text = Strings.Attributes.zdimension;
-            rbLevel1.Text = Strings.Attributes.zlevel1;
-            rbLevel2.Text = Strings.Attributes.zlevel2;
+            grpResource.Text = Strings.Attributes.ResourceSpawn;
+            lblResource.Text = Strings.Attributes.Resource;
+            grpZResource.Text = Strings.Attributes.ZDimension;
+            rbLevel1.Text = Strings.Attributes.ZLevel1;
+            rbLevel2.Text = Strings.Attributes.ZLevel2;
+
+            //Critter
+            grpCritter.Text = Strings.Attributes.Critter;
+            lblCritterSprite.Text = Strings.Attributes.CritterSprite;
+            lblCritterAnimation.Text = Strings.Attributes.CritterAnimation;
+            lblCritterMovement.Text = Strings.Attributes.CritterMovement;
+            lblCritterLayer.Text = Strings.Attributes.CritterLayer;
+            lblCritterMoveSpeed.Text = Strings.Attributes.CritterSpeed;
+            lblCritterMoveFrequency.Text = Strings.Attributes.CritterFrequency;
+            chkCritterIgnoreNpcAvoids.Text = Strings.Attributes.CritterIgnoreNpcAvoids;
+            chkCritterBlockPlayers.Text = Strings.Attributes.CritterBlockPlayers;
+            lblCritterDirection.Text = Strings.Attributes.CritterDirection;
+
+            cmbCritterDirection.Items.Clear();
+            cmbCritterDirection.Items.Add(Strings.NpcSpawns.randomdirection);
+            for (var i = 0; i < 4; i++)
+            {
+                cmbCritterDirection.Items.Add(Strings.Directions.dir[i]);
+            }
+            cmbCritterDirection.SelectedIndex = 0;
+
+            cmbCritterMovement.Items.Clear();
+            for (var i = 0; i < Strings.Attributes.CritterMovements.Count; i++)
+            {
+                cmbCritterMovement.Items.Add(Strings.Attributes.CritterMovements[i]);
+            }
+            cmbCritterMovement.SelectedIndex = 0;
+
+            cmbCritterLayer.Items.Clear();
+            for (var i = 0; i < Strings.Attributes.CritterLayers.Count; i++)
+            {
+                cmbCritterLayer.Items.Add(Strings.Attributes.CritterLayers[i]);
+            }
+            cmbCritterLayer.SelectedIndex = 1;
 
             //NPCS Tab
             grpSpawnLoc.Text = rbDeclared.Checked ? Strings.NpcSpawns.spawndeclared : Strings.NpcSpawns.spawnrandom;
@@ -966,11 +1172,6 @@ namespace Intersect.Editor.Forms.DockingElements
 
             lblEventInstructions.Text = Strings.MapLayers.eventinstructions;
             lblLightInstructions.Text = Strings.MapLayers.lightinstructions;
-
-            for (var i = 0; i < mMapLayers.Count; i++)
-            {
-                mMapLayers[i].Text = Strings.Tiles.layers[i];
-            }
         }
 
         public void InitMapLayers()
@@ -1041,6 +1242,13 @@ namespace Intersect.Editor.Forms.DockingElements
             }
         }
 
+        private void RefreshMapWarpSounds()
+        {
+            cmbWarpSound.Items.Add(Strings.General.None);
+            cmbWarpSound.Items.AddRange(GameContentManager.SmartSortedSoundNames);
+            cmbWarpSound.SelectedIndex = 0;
+        }
+
         private void btnTileHeader_Click(object sender, EventArgs e)
         {
             Globals.CurrentTool = Globals.SavedTool;
@@ -1056,7 +1264,7 @@ namespace Intersect.Editor.Forms.DockingElements
         {
             Globals.CurrentTool = Globals.SavedTool;
             ChangeTab();
-            Globals.CurrentLayer = Options.LayerCount;
+            Globals.CurrentLayer = LayerOptions.Attributes;
             Core.Graphics.TilePreviewUpdated = true;
             btnAttributeHeader.BackColor = System.Drawing.Color.FromArgb(90, 90, 90);
             CurrentTab = LayerTabs.Attributes;
@@ -1065,13 +1273,13 @@ namespace Intersect.Editor.Forms.DockingElements
 
         public void btnLightsHeader_Click(object sender, EventArgs e)
         {
-            if (Globals.CurrentLayer < Options.LayerCount + 1)
+            if (Globals.CurrentLayer != LayerOptions.Lights && Globals.CurrentLayer != LayerOptions.Events && Globals.CurrentLayer != LayerOptions.Npcs)
             {
                 Globals.SavedTool = Globals.CurrentTool;
             }
 
             ChangeTab();
-            Globals.CurrentLayer = Options.LayerCount + 1;
+            Globals.CurrentLayer = LayerOptions.Lights;
             Core.Graphics.TilePreviewUpdated = true;
             btnLightsHeader.BackColor = System.Drawing.Color.FromArgb(90, 90, 90);
             CurrentTab = LayerTabs.Lights;
@@ -1080,13 +1288,13 @@ namespace Intersect.Editor.Forms.DockingElements
 
         private void btnEventsHeader_Click(object sender, EventArgs e)
         {
-            if (Globals.CurrentLayer < Options.LayerCount + 1)
+            if (Globals.CurrentLayer != LayerOptions.Lights && Globals.CurrentLayer != LayerOptions.Events && Globals.CurrentLayer != LayerOptions.Npcs)
             {
                 Globals.SavedTool = Globals.CurrentTool;
             }
 
             ChangeTab();
-            Globals.CurrentLayer = Options.LayerCount + 2;
+            Globals.CurrentLayer = LayerOptions.Events;
             Core.Graphics.TilePreviewUpdated = true;
             btnEventsHeader.BackColor = System.Drawing.Color.FromArgb(90, 90, 90);
             CurrentTab = LayerTabs.Events;
@@ -1095,13 +1303,13 @@ namespace Intersect.Editor.Forms.DockingElements
 
         private void btnNpcsHeader_Click(object sender, EventArgs e)
         {
-            if (Globals.CurrentLayer < Options.LayerCount + 1)
+            if (Globals.CurrentLayer != LayerOptions.Lights && Globals.CurrentLayer != LayerOptions.Events && Globals.CurrentLayer != LayerOptions.Npcs)
             {
                 Globals.SavedTool = Globals.CurrentTool;
             }
 
             ChangeTab();
-            Globals.CurrentLayer = Options.LayerCount + 3;
+            Globals.CurrentLayer = LayerOptions.Npcs;
             Core.Graphics.TilePreviewUpdated = true;
             RefreshNpcList();
             btnNpcsHeader.BackColor = System.Drawing.Color.FromArgb(90, 90, 90);
@@ -1113,7 +1321,11 @@ namespace Intersect.Editor.Forms.DockingElements
         {
             if (e.Button == MouseButtons.Left)
             {
-                SetLayer(mMapLayers.IndexOf((PictureBox) sender));
+                var index = mMapLayers.IndexOf((PictureBox)sender);
+                if (index > -1 && index < Options.Instance.MapOpts.Layers.All.Count)
+                {
+                    SetLayer(Options.Instance.MapOpts.Layers.All[index]);
+                }
             }
             else
             {
@@ -1123,14 +1335,18 @@ namespace Intersect.Editor.Forms.DockingElements
 
         private void ToggleLayerVisibility(int index)
         {
-            LayerVisibility[index] = !LayerVisibility[index];
-            SetLayer(Globals.CurrentLayer);
+            if (index > -1 && index < Options.Instance.MapOpts.Layers.All.Count)
+            {
+                LayerVisibility[Options.Instance.MapOpts.Layers.All[index]] = !LayerVisibility[Options.Instance.MapOpts.Layers.All[index]];
+                SetLayer(Globals.CurrentLayer);
+            }
+
         }
 
         private void picMapLayer_MouseHover(object sender, EventArgs e)
         {
             var tt = new ToolTip();
-            tt.SetToolTip((PictureBox) sender, Strings.Tiles.layers[mMapLayers.IndexOf((PictureBox) sender)]);
+            tt.SetToolTip((PictureBox) sender, Options.Instance.MapOpts.Layers.All[mMapLayers.IndexOf((PictureBox)sender)]);
         }
 
         private void cmbTilesets_MouseDown(object sender, MouseEventArgs e)
@@ -1146,6 +1362,23 @@ namespace Intersect.Editor.Forms.DockingElements
             nudItemQuantity.Value = Math.Max(1, nudItemQuantity.Value);
         }
 
+        private void NudItemRespawnTime_ValueChanged(object sender, System.EventArgs e)
+        {
+            nudItemRespawnTime.Value = Math.Max(0, nudItemRespawnTime.Value);
+        }
+
+        private void cmbMapLayer_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (cmbMapLayer.SelectedIndex > -1)
+            {
+                SetLayer(Options.Instance.MapOpts.Layers.All[cmbMapLayer.SelectedIndex]);
+            }
+        }
+
+        private void chkChangeInstance_CheckedChanged(object sender, EventArgs e)
+        {
+            grpInstanceSettings.Visible = chkChangeInstance.Checked;
+        }
     }
 
 }

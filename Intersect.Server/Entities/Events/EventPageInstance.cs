@@ -1,5 +1,5 @@
 ﻿using System;
-
+using System.Linq;
 using Intersect.Enums;
 using Intersect.GameObjects;
 using Intersect.GameObjects.Events;
@@ -13,7 +13,7 @@ using Intersect.Utilities;
 namespace Intersect.Server.Entities.Events
 {
 
-    public class EventPageInstance : Entity
+    public partial class EventPageInstance : Entity
     {
 
         public EventBase BaseEvent;
@@ -50,18 +50,22 @@ namespace Intersect.Server.Entities.Events
 
         public EventTrigger Trigger;
 
+        public int Speed = 20;
+
         public EventPageInstance(
             EventBase myEvent,
             EventPage myPage,
             Guid mapId,
+            Guid mapInstanceId,
             Event eventIndex,
             Player player
-        ) : base(Guid.NewGuid())
+        ) : base()
         {
             BaseEvent = myEvent;
             Id = BaseEvent.Id;
             MyPage = myPage;
             MapId = mapId;
+            MapInstanceId = mapInstanceId;
             X = eventIndex.X;
             Y = eventIndex.Y;
             Name = myEvent.Name;
@@ -126,16 +130,18 @@ namespace Intersect.Server.Entities.Events
             EventPage myPage,
             Guid instanceId,
             Guid mapId,
+            Guid mapInstanceId,
             Event eventIndex,
             Player player,
             EventPageInstance globalClone
-        ) : base(instanceId)
+        ) : base(instanceId, Guid.Empty)
         {
             BaseEvent = myEvent;
             Id = BaseEvent.Id;
             GlobalClone = globalClone;
             MyPage = myPage;
             MapId = mapId;
+            MapInstanceId = mapInstanceId;
             X = globalClone.X;
             Y = globalClone.Y;
             Name = myEvent.Name;
@@ -203,23 +209,23 @@ namespace Intersect.Server.Entities.Events
                 switch (mMovementSpeed)
                 {
                     case EventMovementSpeed.Slowest:
-                        Stat[(int) Stats.Speed].BaseStat = 2;
+                        Speed = 2;
 
                         break;
                     case EventMovementSpeed.Slower:
-                        Stat[(int) Stats.Speed].BaseStat = 5;
+                        Speed = 5;
 
                         break;
                     case EventMovementSpeed.Normal:
-                        Stat[(int) Stats.Speed].BaseStat = 20;
+                        Speed = 20;
 
                         break;
                     case EventMovementSpeed.Faster:
-                        Stat[(int) Stats.Speed].BaseStat = 30;
+                        Speed = 30;
 
                         break;
                     case EventMovementSpeed.Fastest:
-                        Stat[(int) Stats.Speed].BaseStat = 40;
+                        Speed = 40;
 
                         break;
                 }
@@ -277,42 +283,43 @@ namespace Intersect.Server.Entities.Events
             return pkt;
         }
 
-        //Stats
-        public override void SendStatUpdate(int index)
-        {
-            //do nothing
-        }
-
         public void SetMovementSpeed(EventMovementSpeed speed)
         {
             switch (speed)
             {
                 case EventMovementSpeed.Slowest:
-                    Stat[(int) Stats.Speed].BaseStat = 5;
+                    Speed = 5;
 
                     break;
                 case EventMovementSpeed.Slower:
-                    Stat[(int) Stats.Speed].BaseStat = 10;
+                    Speed = 10;
 
                     break;
                 case EventMovementSpeed.Normal:
-                    Stat[(int) Stats.Speed].BaseStat = 20;
+                    Speed = 20;
 
                     break;
                 case EventMovementSpeed.Faster:
-                    Stat[(int) Stats.Speed].BaseStat = 30;
+                    Speed = 30;
 
                     break;
                 case EventMovementSpeed.Fastest:
-                    Stat[(int) Stats.Speed].BaseStat = 40;
+                    Speed = 40;
 
                     break;
             }
         }
 
+        public override int[] GetStatValues()
+        {
+            var stats = new int[(int)Stats.StatCount];
+            stats[(int)Stats.Speed] = Speed;
+            return stats;
+        }
+
         public void Update(bool isActive, long timeMs)
         {
-            if (MoveTimer >= Globals.Timing.Milliseconds || GlobalClone != null || isActive && MyPage.InteractionFreeze)
+            if (MoveTimer >= Timing.Global.Milliseconds || GlobalClone != null || isActive && MyPage.InteractionFreeze)
             {
                 return;
             }
@@ -330,12 +337,12 @@ namespace Intersect.Server.Entities.Events
                         return;
                     }
 
-                    var dir = (byte)Randomization.Next(0, 4);
+                    var dir = (byte)Randomization.Next(0, Options.Instance.Sprites.Directions);
                     if (CanMove(dir) == -1)
                     {
                         Move(dir, Player);
-                        MoveTimer = Globals.Timing.Milliseconds + (long) GetMovementTime();
                     }
+                    MoveTimer = Timing.Global.Milliseconds + (long)GetMovementTime();
                 }
             }
         }
@@ -345,9 +352,9 @@ namespace Intersect.Server.Entities.Events
         {
             base.Move(moveDir, forPlayer, doNotUpdate, correction);
 
-            if (this.Trigger == EventTrigger.PlayerCollide && Passable)
+            if (Trigger == EventTrigger.PlayerCollide && Passable && MapController.TryGetInstanceFromMap(Map.Id, MapInstanceId, out var instance))
             {
-                var players = Map.GetPlayersOnMap();
+                var players = instance.GetPlayers();
                 foreach (var player in players)
                 {
                     if (player.X == X && player.Y == Y && player.Z == Z)
@@ -439,7 +446,7 @@ namespace Intersect.Server.Entities.Events
                                     else
                                     {
                                         //Move Randomly
-                                        moveDir = (byte)Randomization.Next(0, 4);
+                                        moveDir = (byte)Randomization.Next(0, Options.Instance.Sprites.Directions);
                                         if (CanMove(moveDir) == -1)
                                         {
                                             Move(moveDir, forPlayer);
@@ -450,7 +457,7 @@ namespace Intersect.Server.Entities.Events
                                 else
                                 {
                                     //Move Randomly
-                                    moveDir = (byte)Randomization.Next(0, 4);
+                                    moveDir = (byte)Randomization.Next(0, Options.Instance.Sprites.Directions);
                                     if (CanMove(moveDir) == -1)
                                     {
                                         Move(moveDir, forPlayer);
@@ -694,9 +701,9 @@ namespace Intersect.Server.Entities.Events
                         SendToPlayer();
                     }
 
-                    if (MoveTimer < Globals.Timing.Milliseconds)
+                    if (MoveTimer < Timing.Global.Milliseconds)
                     {
-                        MoveTimer = Globals.Timing.Milliseconds + (long) GetMovementTime();
+                        MoveTimer = Timing.Global.Milliseconds + (long) GetMovementTime();
                     }
                 }
             }
@@ -778,7 +785,7 @@ namespace Intersect.Server.Entities.Events
             }
         }
 
-        public bool ShouldDespawn()
+        public bool ShouldDespawn(MapController map)
         {
             //Should despawn if conditions are not met OR an earlier page can spawn
             if (!Conditions.MeetsConditionLists(MyPage.ConditionLists, MyEventIndex.Player, MyEventIndex))
@@ -786,14 +793,14 @@ namespace Intersect.Server.Entities.Events
                 return true;
             }
 
-            if (Map != null && !Map.GetSurroundingMaps(true).Contains(MyEventIndex.Player.Map))
+            if (map != null && !map.GetSurroundingMapIds(true).Contains(MyEventIndex.Player.MapId))
             {
                 return true;
             }
 
             for (var i = 0; i < BaseEvent.Pages.Count; i++)
             {
-                if (Conditions.CanSpawnPage(BaseEvent.Pages[i], MyEventIndex.Player, MyEventIndex))
+                if (i != mPageNum && Conditions.CanSpawnPage(BaseEvent.Pages[i], MyEventIndex.Player, MyEventIndex))
                 {
                     if (i > mPageNum)
                     {
@@ -804,8 +811,15 @@ namespace Intersect.Server.Entities.Events
 
             if (GlobalClone != null)
             {
-                var map = MapInstance.Get(GlobalClone.MapId);
-                if (map == null || !map.FindEvent(GlobalClone.BaseEvent, GlobalClone))
+                //Removing this line because the global clone MUST be on the same map and its hindering performance.
+                //var map = MapController.Get(GlobalClone.MapId);
+                if (MapController.TryGetInstanceFromMap(map.Id, MapInstanceId, out var mapInstance))
+                {
+                    if (!mapInstance.FindEvent(GlobalClone.BaseEvent, GlobalClone))
+                    {
+                        return true;
+                    }
+                } else // Couldn't get map or mapInstance
                 {
                     return true;
                 }

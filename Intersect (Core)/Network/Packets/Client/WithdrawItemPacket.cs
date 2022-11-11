@@ -1,12 +1,22 @@
-﻿namespace Intersect.Network.Packets.Client
+﻿using MessagePack;
+
+namespace Intersect.Network.Packets.Client
 {
-
-    public class WithdrawItemPacket : SlotQuantityPacket
+    [MessagePackObject]
+    public partial class WithdrawItemPacket : SlotQuantityPacket
     {
-
-        public WithdrawItemPacket(int slot, int quantity) : base(slot, quantity)
+        //Parameterless Constructor for MessagePack
+        public WithdrawItemPacket() : base(0, 0)
         {
         }
+
+        public WithdrawItemPacket(int slot, int quantity, int invSlot = -1) : base(slot, quantity)
+        {
+            InvSlot = invSlot;
+        }
+
+        [Key(0)]
+        public int InvSlot { get; set; }
 
     }
 

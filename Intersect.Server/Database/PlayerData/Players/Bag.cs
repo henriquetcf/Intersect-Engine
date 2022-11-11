@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 
 using Intersect.GameObjects;
-
+using Intersect.Logging;
 using Microsoft.EntityFrameworkCore;
 
 using Newtonsoft.Json;
@@ -15,7 +15,7 @@ using Newtonsoft.Json;
 namespace Intersect.Server.Database.PlayerData.Players
 {
 
-    public class Bag
+    public partial class Bag
     {
 
         public Bag()
@@ -26,6 +26,7 @@ namespace Intersect.Server.Database.PlayerData.Players
         {
             SlotCount = slots;
             ValidateSlots();
+            Save();
         }
 
         [JsonIgnore, NotMapped]
@@ -87,15 +88,110 @@ namespace Intersect.Server.Database.PlayerData.Players
             Slots = slots;
         }
 
-        public static Bag GetBag(PlayerContext context, Guid id)
+        public static Bag GetBag(Guid id)
         {
-            var bag = context.Bags.Where(p => p.Id == id).Include(p => p.Slots).SingleOrDefault();
-            if (bag != null)
+            try
             {
-                bag.Slots = bag.Slots.OrderBy(p => p.Slot).ToList();
+                using (var context = DbInterface.CreatePlayerContext())
+                {
+                    var bag = context.Bags.Where(p => p.Id == id).Include(p => p.Slots).SingleOrDefault();
+                    if (bag != null)
+                    {
+                        bag.Slots = bag.Slots.OrderBy(p => p.Slot).ToList();
+                        bag.ValidateSlots();
+
+                        //Remove any items from this bag that have been removed from the game
+                        foreach (var itm in bag.Slots)
+                        {
+                            if (itm.ItemId != Guid.Empty && ItemBase.Get(itm.ItemId) == null)
+                            {
+                                itm.Set(Item.None);
+                            }
+                        }
+                    }
+
+                    return bag;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex);
+                return null;
+            }
+        }
+
+        public void Save ()
+        {
+            try
+            {
+                using (var context = DbInterface.CreatePlayerContext(readOnly: false))
+                {
+                    context.Bags.Update(this);
+                    context.ChangeTracker.DetectChanges();
+                    context.SaveChanges();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex);
+            }
+        }
+
+        /// <summary>
+        /// Finds all bag slots matching the desired item and quantity.
+        /// </summary>
+        /// <param name="itemId">The item Id to look for.</param>
+        /// <param name="quantity">The quantity of the item to look for.</param>
+        /// <returns>A list of <see cref="InventorySlot"/> containing the requested item.</returns>
+        public List<BagSlot> FindBagItemSlots(Guid itemId, int quantity = 1)
+        {
+            var slots = new List<BagSlot>();
+
+            for (var i = 0; i < SlotCount; i++)
+            {
+                var item = Slots[i];
+                if (item?.ItemId != itemId)
+                {
+                    continue;
+                }
+
+                if (item.Quantity >= quantity)
+                {
+                    slots.Add(item);
+                }
             }
 
-            return bag;
+            return slots;
+        }
+
+        /// <summary>
+        /// Retrieves a list of open bag slots for this bag.
+        /// </summary>
+        /// <returns>A list of <see cref="BagSlot"/></returns>
+        public List<BagSlot> FindOpenBagSlots()
+        {
+            var slots = new List<BagSlot>();
+
+            for (var i = 0; i < SlotCount; i++)
+            {
+                var inventorySlot = Slots[i];
+
+                if (inventorySlot != null && inventorySlot.ItemId == Guid.Empty)
+                {
+                    slots.Add(inventorySlot);
+                }
+            }
+            return slots;
+        }
+
+        /// <summary>
+        /// Finds the index of a given <see cref="BagSlot"/> within this bag's Slots.
+        /// </summary>
+        /// <param name="slot">The <see cref="BagSlot"/>to search for</param>
+        /// <returns>The index if found, otherwise -1</returns>
+        public int FindSlotIndex(BagSlot slot)
+        {
+            return Slots.FindIndex(sl => sl.Id == slot.Id);
         }
 
     }

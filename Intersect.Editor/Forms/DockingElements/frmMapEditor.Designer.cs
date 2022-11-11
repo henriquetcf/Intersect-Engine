@@ -1,4 +1,6 @@
-﻿namespace Intersect.Editor.Forms.DockingElements
+using Intersect.Editor.Forms.Controls;
+
+namespace Intersect.Editor.Forms.DockingElements
 {
     partial class FrmMapEditor
     {
@@ -28,9 +30,9 @@
         /// </summary>
         private void InitializeComponent()
         {
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FrmMapEditor));
             this.pnlMapContainer = new System.Windows.Forms.Panel();
             this.picMap = new System.Windows.Forms.PictureBox();
+            this.tooltipMapAttribute = new MapAttributeTooltip();
             this.pnlMapContainer.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.picMap)).BeginInit();
             this.SuspendLayout();
@@ -67,8 +69,13 @@
             this.picMap.MouseMove += new System.Windows.Forms.MouseEventHandler(this.picMap_MouseMove);
             this.picMap.MouseUp += new System.Windows.Forms.MouseEventHandler(this.picMap_MouseUp);
             this.picMap.Resize += new System.EventHandler(this.picMap_Resize);
+            //
+            // tooltipMapAttribute
+            //
+            this.tooltipMapAttribute.Name = "tooltipMapAttribute";
+            this.tooltipMapAttribute.Visible = false;
             // 
-            // frmMapEditor
+            // FrmMapEditor
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
@@ -79,7 +86,6 @@
             this.DockAreas = WeifenLuo.WinFormsUI.Docking.DockAreas.Document;
             this.DoubleBuffered = true;
             this.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.KeyPreview = true;
             this.Name = "FrmMapEditor";
             this.Text = "Map Editor";
@@ -88,6 +94,7 @@
             this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.frmMapEditor_KeyDown);
             this.pnlMapContainer.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.picMap)).EndInit();
+            this.picMap.Controls.Add(this.tooltipMapAttribute);
             this.ResumeLayout(false);
 
         }
@@ -96,5 +103,6 @@
 
         public System.Windows.Forms.PictureBox picMap;
         public System.Windows.Forms.Panel pnlMapContainer;
+        public MapAttributeTooltip tooltipMapAttribute;
     }
 }

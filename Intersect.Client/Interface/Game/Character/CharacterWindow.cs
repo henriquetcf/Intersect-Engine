@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 using Intersect.Client.Core;
 using Intersect.Client.Framework.File_Management;
+using Intersect.Client.Framework.Graphics;
 using Intersect.Client.Framework.Gwen;
 using Intersect.Client.Framework.Gwen.Control;
 using Intersect.Client.Framework.Gwen.Control.EventArguments;
@@ -15,7 +16,7 @@ using Intersect.GameObjects;
 namespace Intersect.Client.Interface.Game.Character
 {
 
-    public class CharacterWindow
+    public partial class CharacterWindow
     {
 
         //Equipment List
@@ -53,7 +54,7 @@ namespace Intersect.Client.Interface.Game.Character
 
         Label mDefenseLabel;
 
-        private int[] mEmptyStatBoost = new int[Options.MaxStats];
+        private int[] mEmptyStatBoost = new int[(int)Stats.StatCount];
 
         Label mMagicRstLabel;
 
@@ -69,6 +70,43 @@ namespace Intersect.Client.Interface.Game.Character
         public int X;
 
         public int Y;
+
+        //Extra Buffs
+        ClassBase mPlayer;
+
+        Label mHpRegen;
+
+        int HpRegenAmount;
+
+        Label mManaRegen;
+
+        int ManaRegenAmount;
+
+        Label mLifeSteal;
+
+        int LifeStealAmount = 0;
+
+        Label mAttackSpeed;
+
+        Label mExtraExp;
+
+        int ExtraExpAmount = 0;
+
+        Label mLuck;
+
+        int LuckAmount = 0;
+
+        Label mTenacity;
+
+        int TenacityAmount = 0;
+
+        Label mCooldownReduction;
+
+        int CooldownAmount = 0;
+
+        Label mManaSteal;
+
+        int ManaStealAmount = 0;
 
         //Init
         public CharacterWindow(Canvas gameCanvas)
@@ -131,6 +169,19 @@ namespace Intersect.Client.Interface.Game.Character
                 Items[i].Setup();
             }
 
+            var extraBuffsLabel = new Label(mCharacterWindow, "ExtraBuffsLabel");
+            extraBuffsLabel.SetText(Strings.Character.ExtraBuffs);
+
+            mHpRegen = new Label(mCharacterWindow, "HpRegen");
+            mManaRegen = new Label(mCharacterWindow, "ManaRegen");
+            mLifeSteal = new Label(mCharacterWindow, "Lifesteal");
+            mAttackSpeed = new Label(mCharacterWindow, "AttackSpeed");
+            mExtraExp = new Label(mCharacterWindow, "ExtraExp");
+            mLuck = new Label(mCharacterWindow, "Luck");
+            mTenacity = new Label(mCharacterWindow, "Tenacity");
+            mCooldownReduction = new Label(mCharacterWindow, "CooldownReduction");
+            mManaSteal = new Label(mCharacterWindow, "Manasteal");
+
             mCharacterWindow.LoadJsonUi(GameContentManager.UI.InGame, Graphics.Renderer.GetResolutionString());
         }
 
@@ -174,9 +225,9 @@ namespace Intersect.Client.Interface.Game.Character
             );
 
             //Load Portrait
-            //UNCOMMENT THIS LINE IF YOU'D RATHER HAVE A FACE HERE GameTexture faceTex = Globals.ContentManager.GetTexture(GameContentManager.TextureType.Face, Globals.Me.Face);
+            //UNCOMMENT THIS LINE IF YOU'D RATHER HAVE A FACE HERE GameTexture faceTex = Globals.ContentManager.GetTexture(Framework.Content.TextureType.Face, Globals.Me.Face);
             var entityTex = Globals.ContentManager.GetTexture(
-                GameContentManager.TextureType.Entity, Globals.Me.MySprite
+                Framework.Content.TextureType.Entity, Globals.Me.Sprite
             );
 
             /* UNCOMMENT THIS BLOCK IF YOU"D RATHER HAVE A FACE HERE if (Globals.Me.Face != "" && Globals.Me.Face != _currentSprite && faceTex != null)
@@ -192,7 +243,7 @@ namespace Intersect.Client.Interface.Game.Character
                  }
              }
              else */
-            if (Globals.Me.MySprite != "" && Globals.Me.MySprite != mCurrentSprite && entityTex != null)
+            if (!string.IsNullOrWhiteSpace(Globals.Me.Sprite) && Globals.Me.Sprite != mCurrentSprite && entityTex != null)
             {
                 for (var z = 0; z < Options.PaperdollOrder[1].Count; z++)
                 {
@@ -228,6 +279,7 @@ namespace Intersect.Client.Interface.Game.Character
                         PaperdollPanels[z].Texture = entityTex;
                         PaperdollPanels[z].SetTextureRect(0, 0, entityTex.GetWidth() / Options.Instance.Sprites.NormalFrames, entityTex.GetHeight() / Options.Instance.Sprites.Directions);
                         PaperdollPanels[z].SizeToContents();
+                        PaperdollPanels[z].RenderColor = Globals.Me.Color;
                         Align.Center(PaperdollPanels[z]);
                     }
 
@@ -240,7 +292,7 @@ namespace Intersect.Client.Interface.Game.Character
                     else if (paperdoll != "" && paperdoll != PaperdollTextures[z])
                     {
                         var paperdollTex = Globals.ContentManager.GetTexture(
-                            GameContentManager.TextureType.Paperdoll, paperdoll
+                            Framework.Content.TextureType.Paperdoll, paperdoll
                         );
 
                         PaperdollPanels[z].Texture = paperdollTex;
@@ -270,7 +322,7 @@ namespace Intersect.Client.Interface.Game.Character
                     }
                 }
             }
-            else if (Globals.Me.MySprite != mCurrentSprite && Globals.Me.Face != mCurrentSprite)
+            else if (Globals.Me.Sprite != mCurrentSprite && Globals.Me.Face != mCurrentSprite)
             {
                 mCharacterPortrait.IsHidden = true;
                 for (var i = 0; i < Options.EquipmentSlots.Count; i++)
@@ -315,6 +367,8 @@ namespace Intersect.Client.Interface.Game.Character
             mAddSpeedBtn.IsHidden =
                 Globals.Me.StatPoints == 0 || Globals.Me.Stat[(int) Stats.Speed] == Options.MaxStatValue;
 
+            UpdateExtraBuffs();
+
             for (var i = 0; i < Options.EquipmentSlots.Count; i++)
             {
                 if (Globals.Me.MyEquipment[i] > -1 && Globals.Me.MyEquipment[i] < Options.MaxInvItems)
@@ -326,6 +380,8 @@ namespace Intersect.Client.Interface.Game.Character
                                 Globals.Me.Inventory[Globals.Me.MyEquipment[i]].ItemId,
                                 Globals.Me.Inventory[Globals.Me.MyEquipment[i]].StatBuffs
                             );
+
+                        UpdateExtraBuffs(Globals.Me.Inventory[Globals.Me.MyEquipment[i]].ItemId);
                     }
                     else
                     {
@@ -339,16 +395,131 @@ namespace Intersect.Client.Interface.Game.Character
             }
         }
 
+        /// <summary>
+        /// Update Extra Buffs Effects like hp/mana regen and items effect types
+        /// </summary>
+        public void UpdateExtraBuffs()
+        {
+            mPlayer = ClassBase.Get(Globals.Me?.Class ?? Guid.Empty);
+
+            //Getting HP and Mana Regen
+            if (mPlayer != null)
+            {
+                HpRegenAmount = mPlayer.VitalRegen[0];
+                mHpRegen.SetText(Strings.Character.HealthRegen.ToString(HpRegenAmount));
+                ManaRegenAmount = mPlayer.VitalRegen[1];
+                mManaRegen.SetText(Strings.Character.ManaRegen.ToString(ManaRegenAmount));
+            }
+
+            CooldownAmount = 0;
+            LifeStealAmount = 0;
+            TenacityAmount = 0;
+            LuckAmount = 0;
+            ExtraExpAmount = 0;
+            ManaStealAmount = 0;
+
+            mLifeSteal.SetText(Strings.Character.Lifesteal.ToString(0));
+            mExtraExp.SetText(Strings.Character.ExtraExp.ToString(0));
+            mLuck.SetText(Strings.Character.Luck.ToString(0));
+            mTenacity.SetText(Strings.Character.Tenacity.ToString(0));
+            mCooldownReduction.SetText(Strings.Character.CooldownReduction.ToString(0));
+            mManaSteal.SetText(Strings.Character.Manasteal.ToString(0));
+
+            mAttackSpeed.SetText(Strings.Character.AttackSpeed.ToString(Globals.Me.CalculateAttackTime() / 1000f));
+        }
+
+        /// <summary>
+        /// Update Extra Buffs Effects like hp/mana regen and items effect types
+        /// </summary>
+        /// <param name="itemId">Id of item to update extra buffs</param>
+        public void UpdateExtraBuffs(Guid itemId)
+        {
+            var item = ItemBase.Get(itemId);
+
+            if (item == null)
+            {
+                return;
+            }
+
+            //Getting HP and Mana Regen
+            if (item.VitalsRegen[0] != 0)
+            {
+                HpRegenAmount += item.VitalsRegen[0];
+                mHpRegen?.SetText(Strings.Character.HealthRegen.ToString(HpRegenAmount));
+            }
+
+            if (item.VitalsRegen[1] != 0)
+            {
+                ManaRegenAmount += item.VitalsRegen[1];
+                mManaRegen?.SetText(Strings.Character.ManaRegen.ToString(ManaRegenAmount));
+            }
+
+            //Getting extra buffs
+            if (item.Effects.Find(effect => effect.Type != EffectType.None && effect.Percentage > 0) != default)
+            {
+                foreach(var effect in item.Effects)
+                {
+                    if (effect.Percentage <= 0)
+                    {
+                        continue;
+                    }
+
+                    switch (effect.Type)
+                    {
+                        case EffectType.CooldownReduction:
+                            CooldownAmount += effect.Percentage;
+                            mCooldownReduction?.SetText(Strings.Character.CooldownReduction.ToString(CooldownAmount));
+
+                            break;
+                        case EffectType.Lifesteal:
+                            LifeStealAmount += effect.Percentage;
+                            mLifeSteal?.SetText(Strings.Character.Lifesteal.ToString(LifeStealAmount));
+
+                            break;
+                        case EffectType.Tenacity:
+                            TenacityAmount += effect.Percentage;
+                            mTenacity?.SetText(Strings.Character.Tenacity.ToString(TenacityAmount));
+
+                            break;
+                        case EffectType.Luck:
+                            LuckAmount += effect.Percentage;
+                            mLuck?.SetText(Strings.Character.Luck.ToString(LuckAmount));
+
+                            break;
+                        case EffectType.EXP:
+                            ExtraExpAmount += effect.Percentage;
+                            mExtraExp?.SetText(Strings.Character.ExtraExp.ToString(ExtraExpAmount));
+
+                            break;
+                        case EffectType.Manasteal:
+                            ManaStealAmount += effect.Percentage;
+                            mManaSteal?.SetText(Strings.Character.Manasteal.ToString(ManaStealAmount));
+
+                            break;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Show the window
+        /// </summary>
         public void Show()
         {
             mCharacterWindow.IsHidden = false;
         }
 
+        /// <summary>
+        /// </summary>
+        /// <returns>Returns if window is visible</returns>
         public bool IsVisible()
         {
             return !mCharacterWindow.IsHidden;
         }
 
+        /// <summary>
+        /// Hide the window
+        /// </summary>
         public void Hide()
         {
             mCharacterWindow.IsHidden = true;

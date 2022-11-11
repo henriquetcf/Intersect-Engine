@@ -6,18 +6,16 @@ using Intersect.Server.Core.CommandParsing.Arguments;
 using Intersect.Server.General;
 using Intersect.Server.Networking;
 
-using JetBrains.Annotations;
-
 namespace Intersect.Server.Core.Commands
 {
 
-    internal abstract class TargetClientCommand : TargettedCommand<Client>
+    internal abstract partial class TargetClientCommand : TargettedCommand<Client>
     {
 
         protected TargetClientCommand(
-            [NotNull] LocaleCommand command,
-            [NotNull] LocaleArgument argument,
-            [NotNull] params ICommandArgument[] arguments
+            LocaleCommand command,
+            LocaleArgument argument,
+            params ICommandArgument[] arguments
         ) : base(command, argument, arguments)
         {
         }

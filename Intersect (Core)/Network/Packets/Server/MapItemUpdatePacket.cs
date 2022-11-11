@@ -1,23 +1,56 @@
-﻿using System;
+﻿using MessagePack;
+using System;
 
 namespace Intersect.Network.Packets.Server
 {
-
-    public class MapItemUpdatePacket : CerasPacket
+    [MessagePackObject]
+    public partial class MapItemUpdatePacket : IntersectPacket
     {
-
-        public MapItemUpdatePacket(Guid mapId, int itemIndex, string itemData)
+        //Parameterless Constructor for MessagePack
+        public MapItemUpdatePacket()
         {
-            MapId = mapId;
-            ItemIndex = itemIndex;
-            ItemData = itemData;
         }
 
+        //No item data implies removal...
+        public MapItemUpdatePacket(Guid mapId, int tileIndex, Guid uniqueId)
+        {
+            MapId = mapId;
+            TileIndex = tileIndex;
+            Id = uniqueId;
+        }
+
+        //Item data implies item added or updated
+        public MapItemUpdatePacket(Guid mapId, int tileIndex, Guid uniqueId, Guid itemId, Guid? bagId, int quantity, int[] statbuffs)
+        {
+            MapId = mapId;
+            TileIndex = tileIndex;
+            Id = uniqueId;
+            ItemId = itemId;
+            BagId = bagId;
+            Quantity = quantity;
+            StatBuffs = statbuffs;
+        }
+
+        [Key(0)]
         public Guid MapId { get; set; }
 
-        public int ItemIndex { get; set; }
+        [Key(1)]
+        public int TileIndex { get; set; }
 
-        public string ItemData { get; set; }
+        [Key(2)]
+        public Guid Id { get; set; }
+
+        [Key(3)]
+        public Guid ItemId { get; set; }
+
+        [Key(4)]
+        public Guid? BagId { get; set; }
+
+        [Key(5)]
+        public int Quantity { get; set; }
+
+        [Key(6)]
+        public int[] StatBuffs { get; set; }
 
     }
 

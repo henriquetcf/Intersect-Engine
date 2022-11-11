@@ -1,13 +1,16 @@
-﻿using Intersect.Client.Framework.File_Management;
-using Intersect.Client.Framework.Gwen;
+﻿using Intersect.Client.Framework.Gwen;
 using Intersect.Client.Framework.Gwen.Control;
 using Intersect.Client.Framework.Gwen.Control.EventArguments;
 using Intersect.Client.General;
+using Intersect.Client.Networking;
+using System;
+
+using Intersect.Utilities;
 
 namespace Intersect.Client.Interface.Game
 {
 
-    class PictureWindow
+    partial class PictureWindow
     {
 
         //Controls
@@ -34,7 +37,7 @@ namespace Intersect.Client.Interface.Game
             Size = size;
             Clickable = clickable;
 
-            mPicture.Texture = Globals.ContentManager.GetTexture(GameContentManager.TextureType.Image, picture);
+            mPicture.Texture = Globals.ContentManager.GetTexture(Framework.Content.TextureType.Image, picture);
             if (mPicture.Texture != null)
             {
                 mPicture.SetSize(mPicture.Texture.GetWidth(), mPicture.Texture.GetHeight());
@@ -102,9 +105,22 @@ namespace Intersect.Client.Interface.Game
         {
             if (Picture != null)
             {
+                PacketSender.SendClosePicture(Globals.Picture?.EventId ?? Guid.Empty);
                 Globals.Picture = null;
                 Picture = null;
                 mPicture.Hide();
+            }
+        }
+
+        public void Update()
+        {
+            if (Picture != null)
+            {
+                if (Globals.Picture != null && Globals.Picture.HideTime > 0 && Timing.Global.Milliseconds > Globals.Picture.ReceiveTime + Globals.Picture.HideTime)
+                {
+                    //Should auto close this picture
+                    Close();
+                }
             }
         }
 

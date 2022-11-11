@@ -2,12 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 
-using JetBrains.Annotations;
-
 namespace Intersect.Server.Utilities
 {
 
-    public struct SortPair
+    public partial struct SortPair
     {
 
         public string Key;
@@ -25,7 +23,7 @@ namespace Intersect.Server.Utilities
 
     }
 
-    public static class SortOrderExtensions
+    public static partial class SortOrderExtensions
     {
 
         public static string ToShortString(this SortOrder sortOrder)
@@ -70,7 +68,7 @@ namespace Intersect.Server.Utilities
 
     }
 
-    public static class SortHelper
+    public static partial class SortHelper
     {
 
         public static SortOrder ToSortOrder(string str)
@@ -80,7 +78,7 @@ namespace Intersect.Server.Utilities
 
         public static IOrderedEnumerable<T> OrderBy<T, TKey>(
             IEnumerable<T> enumerable,
-            [NotNull] Func<T, TKey> keySelector,
+            Func<T, TKey> keySelector,
             bool ascending
         )
         {

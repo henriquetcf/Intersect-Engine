@@ -1,30 +1,56 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
 using Ceras;
-
+using Intersect.GameObjects.Maps;
 using Intersect.Logging;
-
-using JetBrains.Annotations;
 
 using K4os.Compression.LZ4;
 
 namespace Intersect.Network
 {
 
-    public class Ceras
+    public sealed partial class CerasDefaultBufferPool : ICerasBufferPool
     {
+        public byte[] RentBuffer(int minimumSize)
+        {
+            return System.Buffers.ArrayPool<byte>.Shared.Rent(minimumSize);
+        }
 
-        [NotNull] private readonly CerasSerializer mSerializer;
+        public void Return(byte[] buffer)
+        {
+            System.Buffers.ArrayPool<byte>.Shared.Return(buffer, false);
+        }
+    }
 
-        [NotNull] private readonly SerializerConfig mSerializerConfig;
+    public partial class Ceras
+    {
+        private static readonly string[] BuiltInPacketNamespaces = new[]
+        {
+            "Intersect.Network.Packets",
+            "Intersect.Network.Packets.Client",
+            "Intersect.Network.Packets.Editor",
+            "Intersect.Network.Packets.Server",
+            "Intersect.Admin.Actions"
+        };
+
+        public static List<Type> KnownTypes { get; } = FindTypes(BuiltInPacketNamespaces).ToList();
+
+        protected CerasSerializer mSerializer;
+
+        protected SerializerConfig mSerializerConfig;
 
         public Ceras(bool forNetworking = true)
         {
+            if (CerasBufferPool.Pool == null)
+                CerasBufferPool.Pool = new CerasDefaultBufferPool();
+
             mSerializerConfig = new SerializerConfig
             {
                 PreserveReferences = false
+
             };
 
             mSerializerConfig.Advanced.SealTypesWhenUsingKnownTypes = forNetworking;
@@ -32,27 +58,45 @@ namespace Intersect.Network
             if (forNetworking)
             {
                 mSerializerConfig.VersionTolerance.Mode = VersionToleranceMode.Disabled;
-
-                //TODO: Cleanup?
-                AddKnownTypes(mSerializerConfig, "Intersect.Network.Packets");
-                AddKnownTypes(mSerializerConfig, "Intersect.Network.Packets.Client");
-                AddKnownTypes(mSerializerConfig, "Intersect.Network.Packets.Editor");
-                AddKnownTypes(mSerializerConfig, "Intersect.Network.Packets.Server");
-                AddKnownTypes(mSerializerConfig, "Intersect.Admin.Actions");
+                mSerializerConfig.KnownTypes.AddRange(KnownTypes);
+                mSerializerConfig.KnownTypes.ForEach(
+                    knownType =>
+                        mSerializerConfig.ConfigType(knownType).TypeConstruction = TypeConstruction.ByUninitialized()
+                );
+            }
+            else
+            {
+                mSerializerConfig.VersionTolerance.Mode = VersionToleranceMode.Standard;
             }
 
             mSerializer = new CerasSerializer(mSerializerConfig);
         }
 
-        private void AddKnownTypes(SerializerConfig config, string nameSpce)
+        /// <summary>
+        /// Creates Ceras with instructions on how to serialize type names. This is used for migrating legacy classes to newer versions during server migrations.
+        /// </summary>
+        /// <param name="nameTypeMap"></param>
+        public Ceras(Dictionary<string,Type> nameTypeMap)
         {
-            var packetTypes = Assembly.GetExecutingAssembly().GetTypes().Where(t => t.Namespace == nameSpce).ToList();
-            foreach (var typ in packetTypes)
+            mSerializerConfig = new SerializerConfig
             {
-                config.KnownTypes.Add(typ);
-                mSerializerConfig.ConfigType(typ).TypeConstruction = TypeConstruction.ByUninitialized();
-            }
+                PreserveReferences = false
+            };
+
+            mSerializerConfig.Advanced.SealTypesWhenUsingKnownTypes = false;
+            mSerializerConfig.VersionTolerance.Mode = VersionToleranceMode.Standard;
+
+            mSerializerConfig.Advanced.TypeBinder = new CerasTypeBinder(nameTypeMap);
+
+            mSerializer = new CerasSerializer(mSerializerConfig);
         }
+
+        public static void AddKnownTypes(IReadOnlyList<Type> types) => KnownTypes.AddRange(types.Where(type => !KnownTypes.Contains(type)));
+
+        private static IEnumerable<Type> FindTypes(IEnumerable<string> nameSpaces) => nameSpaces.SelectMany(FindTypes);
+
+        private static IEnumerable<Type> FindTypes(string nameSpace) =>
+            typeof(Ceras).Assembly.GetTypes().Where(type => type.Namespace == nameSpace);
 
         public byte[] Serialize(object obj)
         {
@@ -98,7 +142,7 @@ namespace Intersect.Network
 
         public byte[] Compress(object obj)
         {
-            return LZ4Pickler.Pickle(Serialize(obj), LZ4Level.L12_MAX);
+            return LZ4Pickler.Pickle(Serialize(obj), LZ4Level.L00_FAST);
         }
 
         public object Decompress(byte[] data)
@@ -112,5 +156,71 @@ namespace Intersect.Network
         }
 
     }
+
+    public partial class LegacyCeras : Ceras
+    {
+        /// <summary>
+        /// Creates a Ceras instance with legacy config (no version tolerance) in order for the server to use for database upgrades to the new serialized formats.
+        /// </summary>
+        public LegacyCeras()
+        {
+            mSerializerConfig = CreateLegacyConfig();
+            mSerializer = new CerasSerializer(mSerializerConfig);
+        }
+
+        /// <summary>
+        /// Creates a Ceras instant wtih legacy config (no version tolerance) in order for the server to use for database upgrades to new serialized formats.
+        /// The dictionary parameters allow us to override what classes Ceras initializes by mapping old types to new ones.
+        /// </summary>
+        public LegacyCeras(Dictionary<string, Type> nameTypeMap)
+        {
+            mSerializerConfig = CreateLegacyConfig();
+
+            var typeBinder = new CerasTypeBinder(nameTypeMap);
+            mSerializerConfig.Advanced.TypeBinder = typeBinder;
+
+            mSerializer = new CerasSerializer(mSerializerConfig);
+        }
+
+        private SerializerConfig CreateLegacyConfig()
+        {
+            var config = new SerializerConfig
+            {
+                PreserveReferences = false
+            };
+
+            config.Advanced.SealTypesWhenUsingKnownTypes = false;
+            config.VersionTolerance.Mode = VersionToleranceMode.Disabled;
+
+            return config;
+        }
+    }
+
+    partial class CerasTypeBinder : ITypeBinder
+    {
+        Dictionary<string, Type> _nameToType = new Dictionary<string, Type>();
+
+        public CerasTypeBinder(Dictionary<string, Type> nameTypeMap)
+        {
+            _nameToType = nameTypeMap;
+        }
+
+        public string GetBaseName(Type type)
+        {
+            return _nameToType.Keys.FirstOrDefault(k => _nameToType[k] == type);
+        }
+
+        public Type GetTypeFromBase(string baseTypeName)
+        {
+            return _nameToType[baseTypeName];
+        }
+
+        public Type GetTypeFromBaseAndArguments(string baseTypeName, params Type[] genericTypeArguments)
+        {
+            throw new NotSupportedException("this binder is only for debugging");
+        }
+    }
+
+
 
 }

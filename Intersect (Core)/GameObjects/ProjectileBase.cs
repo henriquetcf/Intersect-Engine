@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
-
+using Intersect.Enums;
 using Intersect.Models;
 
 using Newtonsoft.Json;
@@ -9,7 +9,7 @@ using Newtonsoft.Json;
 namespace Intersect.GameObjects
 {
 
-    public class ProjectileBase : DatabaseObject<ProjectileBase>, IFolderable
+    public partial class ProjectileBase : DatabaseObject<ProjectileBase>, IFolderable
     {
 
         public const int MAX_PROJECTILE_DIRECTIONS = 8;
@@ -72,6 +72,7 @@ namespace Intersect.GameObjects
 
         public int Delay { get; set; } = 1;
 
+        //this one is not used anymore
         public bool GrappleHook { get; set; }
 
         public bool IgnoreActiveResources { get; set; }
@@ -98,6 +99,20 @@ namespace Intersect.GameObjects
             set => SpawnLocations = JsonConvert.DeserializeObject<Location[,]>(value);
         }
 
+        [NotMapped]
+        public List<GrappleOptions> GrappleHookOptions = new List<GrappleOptions>();
+
+        [JsonIgnore]
+        [Column("GrappleHookOptions")]
+        public string GrappleHookOptionsJson
+        {
+            get => JsonConvert.SerializeObject(GrappleHookOptions);
+            set
+            {
+                GrappleHookOptions = JsonConvert.DeserializeObject<List<GrappleOptions>>(value ?? "") ?? new List<GrappleOptions>();
+            }
+        }
+
         public int Speed { get; set; } = 1;
 
         [Column("Spell")]
@@ -116,14 +131,14 @@ namespace Intersect.GameObjects
 
     }
 
-    public class Location
+    public partial class Location
     {
 
         public bool[] Directions = new bool[ProjectileBase.MAX_PROJECTILE_DIRECTIONS];
 
     }
 
-    public class ProjectileAnimation
+    public partial class ProjectileAnimation
     {
 
         public Guid AnimationId;

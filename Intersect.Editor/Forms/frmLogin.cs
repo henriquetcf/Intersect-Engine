@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
@@ -11,7 +11,9 @@ using Intersect.Editor.Core;
 using Intersect.Editor.General;
 using Intersect.Editor.Localization;
 using Intersect.Editor.Networking;
+using Intersect.Logging;
 using Intersect.Network;
+using Intersect.Utilities;
 
 namespace Intersect.Editor.Forms
 {
@@ -32,12 +34,21 @@ namespace Intersect.Editor.Forms
         {
             CultureInfo.DefaultThreadCurrentCulture = new CultureInfo("en-US");
             InitializeComponent();
+            Icon = System.Drawing.Icon.ExtractAssociatedIcon(System.Reflection.Assembly.GetExecutingAssembly().Location);
         }
 
         private void frmLogin_Load(object sender, EventArgs e)
         {
             AppDomain.CurrentDomain.UnhandledException += Program.CurrentDomain_UnhandledException;
-            Strings.Load();
+            try
+            {
+                Strings.Load();
+            }
+            catch (Exception exception)
+            {
+                Log.Error(exception);
+                throw;
+            }
             GameContentManager.CheckForResources();
             Database.LoadOptions();
             mOptionsLoaded = true;
@@ -89,7 +100,7 @@ namespace Intersect.Editor.Forms
             }
             else
             {
-                var seconds = (Globals.ReconnectTime - Globals.System.GetTimeMs()) / 1000;
+                var seconds = (Globals.ReconnectTime - Timing.Global.Milliseconds) / 1000;
                 statusString = Strings.Login.failedtoconnect.ToString(seconds.ToString("0"));
             }
 

@@ -1,12 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Intersect.Updater
+﻿namespace Intersect.Updater
 {
-    public class UpdateFile
+    public partial class UpdateFile
     {
         public string Path { get; set; }
         public string Hash { get; set; }

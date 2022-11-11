@@ -1,16 +1,14 @@
 ﻿using System.Globalization;
 using System.Reflection;
 
-using JetBrains.Annotations;
-
 namespace Intersect.Extensions
 {
 
-    public static class PropertyInfoExtensions
+    public static partial class PropertyInfoExtensions
     {
 
         public static bool TryGetValue<TValue>(
-            [NotNull] this PropertyInfo propertyInfo,
+            this PropertyInfo propertyInfo,
             object target,
             out TValue value
         )
@@ -28,7 +26,7 @@ namespace Intersect.Extensions
         }
 
         public static bool TryGetValue<TValue>(
-            [NotNull] this PropertyInfo propertyInfo,
+            this PropertyInfo propertyInfo,
             object target,
             object[] index,
             out TValue value
@@ -47,7 +45,7 @@ namespace Intersect.Extensions
         }
 
         public static bool TryGetValue<TValue>(
-            [NotNull] this PropertyInfo propertyInfo,
+            this PropertyInfo propertyInfo,
             object target,
             BindingFlags invokeAttr,
             Binder binder,

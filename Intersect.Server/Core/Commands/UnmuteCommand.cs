@@ -5,7 +5,7 @@ using Intersect.Server.Localization;
 namespace Intersect.Server.Core.Commands
 {
 
-    internal sealed class UnmuteCommand : TargetUserCommand
+    internal sealed partial class UnmuteCommand : TargetUserCommand
     {
 
         public UnmuteCommand() : base(Strings.Commands.Unmute, Strings.Commands.Arguments.TargetUnmute)
@@ -22,7 +22,7 @@ namespace Intersect.Server.Core.Commands
             }
 
             Mute.Remove(target);
-            Console.WriteLine($@"    {Strings.Account.unmuted.ToString(target.Name)}");
+            Console.WriteLine($@"    {Strings.Account.UnmuteSuccess.ToString(target.Name)}");
         }
 
     }

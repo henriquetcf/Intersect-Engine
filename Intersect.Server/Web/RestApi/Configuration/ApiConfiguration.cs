@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Collections.ObjectModel;
@@ -9,8 +9,6 @@ using System.Security.Cryptography;
 using Intersect.Configuration;
 using Intersect.Logging;
 using Intersect.Server.Web.RestApi.Authentication.OAuth;
-
-using JetBrains.Annotations;
 
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
@@ -24,18 +22,30 @@ namespace Intersect.Server.Web.RestApi.Configuration
     /// <summary>
     /// Configuration options for <see cref="T:Intersect.Server.Web.RestApi.RestApi" />.
     /// </summary>
-    public sealed class ApiConfiguration : IConfiguration<ApiConfiguration>
+    public sealed partial class ApiConfiguration : IConfiguration<ApiConfiguration>
     {
 
         #region Constants
 
         public const string DefaultPath = @"resources/config/api.config.json";
 
+        /// <summary>
+        /// The default lifetime of refresh tokens (used for requesting new access tokens) in minutes.
+        /// 
+        /// This is 15 minutes for Debug builds and 10 080 minutes (7 days) for Release builds.
+        /// </summary>
+        public const uint DefaultRefreshTokenLifetime =
 #if DEBUG
-        public const uint DefaultRefreshTokenLifetime = 15;
+        15
 #else
-        public const uint DefaultRefreshTokenLifetime = 10080;
+        10_080
 #endif
+        ;
+
+        /// <summary>
+        /// The default lifetime of access tokens (used for requesting data) in minutes.
+        /// </summary>
+        public const uint DefaultAccessTokenLifetime = 5;
 
         public static readonly ThrottlePolicy DefaultThrottlePolicy = new ThrottlePolicy
         {
@@ -107,11 +117,9 @@ namespace Intersect.Server.Web.RestApi.Configuration
         private Dictionary<string, object> mRouteAuthorization;
 
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-        [NotNull]
         public string DataProtectionKey { get; private set; }
 
         [JsonIgnore]
-        [NotNull]
         public IReadOnlyDictionary<string, object> RouteAuthorization =>
             new ReadOnlyDictionary<string, object>(mRouteAuthorization);
 
@@ -121,16 +129,21 @@ namespace Intersect.Server.Web.RestApi.Configuration
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public bool DebugMode { get; private set; } = false;
 
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public NetworkTypes AllowedNetworkTypes { get; private set; } = NetworkTypes.Loopback;
+
 #if DEBUG
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public bool SeedMode { get; private set; }
 #endif
 
-        [JsonProperty(
-            NullValueHandling = NullValueHandling.Ignore, DefaultValueHandling = DefaultValueHandling.Include
-        )]
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore, DefaultValueHandling = DefaultValueHandling.Include)]
         [DefaultValue(DefaultRefreshTokenLifetime)]
         public uint RefreshTokenLifetime { get; private set; } = DefaultRefreshTokenLifetime;
+
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore, DefaultValueHandling = DefaultValueHandling.Ignore)]
+        [DefaultValue(DefaultAccessTokenLifetime)]
+        public uint AccessTokenLifetime { get; private set; } = DefaultAccessTokenLifetime;
 
         [JsonProperty(
             NullValueHandling = NullValueHandling.Ignore, DefaultValueHandling = DefaultValueHandling.Include
@@ -191,8 +204,7 @@ namespace Intersect.Server.Web.RestApi.Configuration
 
         #endregion
 
-        [NotNull]
-        public static ApiConfiguration Create([CanBeNull] string filePath = DefaultPath)
+        public static ApiConfiguration Create(string filePath = DefaultPath)
         {
             var configuration = new ApiConfiguration();
 

@@ -1,7 +1,9 @@
-﻿namespace Intersect.Network.Packets.Client
-{
+﻿using MessagePack;
 
-    public class NewCharacterPacket : CerasPacket
+namespace Intersect.Network.Packets.Client
+{
+    [MessagePackObject]
+    public partial class NewCharacterPacket : IntersectPacket
     {
 
     }

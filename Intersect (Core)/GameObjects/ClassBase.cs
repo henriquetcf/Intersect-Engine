@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -8,14 +8,12 @@ using Intersect.Models;
 using Intersect.Server.Utilities;
 using Intersect.Utilities;
 
-using JetBrains.Annotations;
-
 using Newtonsoft.Json;
 
 namespace Intersect.GameObjects
 {
 
-    public class ClassBase : DatabaseObject<ClassBase>, IFolderable
+    public partial class ClassBase : DatabaseObject<ClassBase>, IFolderable
     {
 
         public const long DEFAULT_BASE_EXPERIENCE = 100;
@@ -93,6 +91,8 @@ namespace Intersect.GameObjects
 
         public int AttackSpeedValue { get; set; }
 
+        public string AttackSpriteOverride { get; set; }
+
         public long BaseExp
         {
             get => mBaseExp;
@@ -118,10 +118,9 @@ namespace Intersect.GameObjects
 
         [JsonIgnore]
         [NotMapped]
-        [NotNull]
         public ExperienceCurve ExperienceCurve { get; }
 
-        //Locked - Can the class be chosen from character select?
+        //Locked - Can the partial class be chosen from character select?
         public bool Locked { get; set; }
 
         public int PointIncrease { get; set; }
@@ -239,7 +238,6 @@ namespace Intersect.GameObjects
         /// <inheritdoc />
         public string Folder { get; set; } = "";
 
-        [Pure]
         public long ExperienceToNextLevel(int level)
         {
             if (ExperienceOverrides.ContainsKey(level))
@@ -252,7 +250,7 @@ namespace Intersect.GameObjects
 
     }
 
-    public class ClassItem
+    public partial class ClassItem
     {
 
         [JsonProperty]
@@ -267,7 +265,7 @@ namespace Intersect.GameObjects
 
     }
 
-    public class ClassSpell
+    public partial class ClassSpell
     {
 
         [JsonProperty]
@@ -282,7 +280,7 @@ namespace Intersect.GameObjects
 
     }
 
-    public class ClassSprite
+    public partial class ClassSprite
     {
 
         public string Face = "";

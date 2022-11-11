@@ -8,15 +8,15 @@ using Intersect.Logging;
 namespace Intersect.Editor.Forms.Editors
 {
 
-    public class EditorForm : Form
+    public partial class EditorForm : Form
     {
-
-        protected bool mChangingName = false;
 
         private bool mClosing = false;
 
         protected EditorForm()
         {
+            Icon = System.Drawing.Icon.ExtractAssociatedIcon(System.Reflection.Assembly.GetExecutingAssembly().Location);
+
             ApplyHooks();
         }
 
@@ -74,16 +74,14 @@ namespace Intersect.Editor.Forms.Editors
 
         private void InitializeComponent()
         {
-            var resources = new System.ComponentModel.ComponentResourceManager(typeof(EditorForm));
             this.SuspendLayout();
-
-            // 
+            //
             // EditorForm
-            // 
+            //
             this.ClientSize = new System.Drawing.Size(284, 261);
-            this.Icon = (System.Drawing.Icon) resources.GetObject("$this.Icon");
             this.Name = "EditorForm";
             this.ResumeLayout(false);
+
         }
 
     }

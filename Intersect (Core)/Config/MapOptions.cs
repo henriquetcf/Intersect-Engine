@@ -4,7 +4,7 @@ using System.Runtime.Serialization;
 namespace Intersect.Config
 {
 
-    public class MapOptions
+    public partial class MapOptions
     {
 
         //Maps
@@ -21,6 +21,10 @@ namespace Intersect.Config
         public int Width = 32;
 
         public bool ZDimensionVisible;
+
+        public int TimeUntilMapCleanup = 30000; // It is recommended this is set to at least the time it takes to despawn a player's dropped items - or they can lose their items prematurely
+
+        public LayerOptions Layers = new LayerOptions();
 
         [OnDeserialized]
         internal void OnDeserializedMethod(StreamingContext context)

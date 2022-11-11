@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -6,17 +6,15 @@ using Intersect.Enums;
 using Intersect.Server.Database.PlayerData.Security;
 using Intersect.Server.Entities;
 
-using JetBrains.Annotations;
-
 using Microsoft.EntityFrameworkCore;
 
 namespace Intersect.Server.Database.PlayerData.SeedData
 {
 
-    public class SeedUsers : SeedData<User>
+    public partial class SeedUsers : SeedData<User>
     {
 
-        private static string GenerateSalt([NotNull] RandomNumberGenerator rng)
+        private static string GenerateSalt(RandomNumberGenerator rng)
         {
             var buffer = new byte[32];
             rng.GetBytes(buffer);
@@ -24,7 +22,7 @@ namespace Intersect.Server.Database.PlayerData.SeedData
             return BitConverter.ToString(buffer).Replace("-", "");
         }
 
-        private static string HashPassword([NotNull] string salt, [NotNull] string password)
+        private static string HashPassword(string salt, string password)
         {
             using (var algorithm = new SHA256Managed())
             {
@@ -136,11 +134,11 @@ namespace Intersect.Server.Database.PlayerData.SeedData
 
     }
 
-    public static class RandomNumberGeneratorExtensions
+    public static partial class RandomNumberGeneratorExtensions
     {
 
         public static int NextInt(
-            [NotNull] this RandomNumberGenerator rng,
+            this RandomNumberGenerator rng,
             int min = int.MinValue,
             int max = int.MaxValue
         )
@@ -151,7 +149,7 @@ namespace Intersect.Server.Database.PlayerData.SeedData
             return Math.Max(Math.Min(BitConverter.ToInt32(buffer, 0), max), min);
         }
 
-        public static uint NextUInt([NotNull] this RandomNumberGenerator rng)
+        public static uint NextUInt(this RandomNumberGenerator rng)
         {
             var buffer = new byte[4];
             rng.GetBytes(buffer);

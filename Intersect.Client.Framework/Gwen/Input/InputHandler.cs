@@ -2,7 +2,6 @@
 using System.Text;
 
 using Intersect.Client.Framework.Gwen.Control;
-using Intersect.Client.Framework.Gwen.ControlInternal;
 using Intersect.Client.Framework.Gwen.DragDrop;
 
 namespace Intersect.Client.Framework.Gwen.Input
@@ -11,7 +10,7 @@ namespace Intersect.Client.Framework.Gwen.Input
     /// <summary>
     ///     Input handling.
     /// </summary>
-    public static class InputHandler
+    public static partial class InputHandler
     {
 
         private static readonly KeyData KeyData = new KeyData();
@@ -261,6 +260,8 @@ namespace Intersect.Client.Framework.Gwen.Input
                     }
                 }
             }
+
+            UpdateHoveredControl(control);
         }
 
         /// <summary>

@@ -6,8 +6,6 @@ using Intersect.Server.Entities;
 using Intersect.Server.Localization;
 using Intersect.Utilities;
 
-using JetBrains.Annotations;
-
 using NCalc;
 
 using Newtonsoft.Json;
@@ -15,7 +13,7 @@ using Newtonsoft.Json;
 namespace Intersect.Server.General
 {
 
-    public class Formulas
+    public partial class Formulas
     {
 
         private const string FORMULAS_FILE = "resources/formulas.json";
@@ -169,7 +167,7 @@ namespace Intersect.Server.General
             }
         }
 
-        private static int Random([NotNull] FunctionArgs args)
+        private static int Random(FunctionArgs args)
         {
             if (args.Parameters == null)
             {

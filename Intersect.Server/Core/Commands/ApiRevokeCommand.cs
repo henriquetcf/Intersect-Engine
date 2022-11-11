@@ -6,12 +6,10 @@ using Intersect.Server.Database;
 using Intersect.Server.Database.PlayerData;
 using Intersect.Server.Localization;
 
-using JetBrains.Annotations;
-
 namespace Intersect.Server.Core.Commands
 {
 
-    internal class ApiRevokeCommand : TargetUserCommand
+    internal partial class ApiRevokeCommand : TargetUserCommand
     {
 
         public ApiRevokeCommand() : base(
@@ -21,7 +19,6 @@ namespace Intersect.Server.Core.Commands
         {
         }
 
-        [NotNull]
         private VariableArgument<string> Role => FindArgumentOrThrow<VariableArgument<string>>(1);
 
         protected override void HandleTarget(ServerContext context, ParserResult result, User target)
@@ -57,7 +54,7 @@ namespace Intersect.Server.Core.Commands
                 return;
             }
 
-            DbInterface.SavePlayerDatabaseAsync();
+            target.Save();
 
             Console.WriteLine(Strings.Commandoutput.apirolerevoked.ToString(target.Name, role));
         }

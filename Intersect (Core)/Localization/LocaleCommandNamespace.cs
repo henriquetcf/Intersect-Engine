@@ -4,14 +4,12 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection;
 
-using JetBrains.Annotations;
-
 using Newtonsoft.Json;
 
 namespace Intersect.Localization
 {
 
-    public abstract class LocaleCommandNamespace : LocaleNamespace
+    public abstract partial class LocaleCommandNamespace : LocaleNamespace
     {
 
         protected LocaleCommandNamespace()
@@ -55,11 +53,9 @@ namespace Intersect.Localization
         }
 
         [JsonIgnore]
-        [NotNull]
         public ImmutableList<LocaleCommand> CommandList { get; }
 
         [JsonIgnore]
-        [NotNull]
         public IDictionary<string, LocaleCommand> CommandLookup { get; }
 
     }

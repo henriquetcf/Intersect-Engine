@@ -14,7 +14,7 @@ using Intersect.Utilities;
 namespace Intersect.Editor.Maps
 {
 
-    class CustomCategory : CategoryAttribute
+    partial class CustomCategory : CategoryAttribute
     {
 
         public CustomCategory(string category) : base(category)
@@ -28,7 +28,7 @@ namespace Intersect.Editor.Maps
 
     }
 
-    class CustomDisplayName : DisplayNameAttribute
+    partial class CustomDisplayName : DisplayNameAttribute
     {
 
         public CustomDisplayName(string name) : base(name)
@@ -39,7 +39,7 @@ namespace Intersect.Editor.Maps
 
     }
 
-    class CustomDescription : DescriptionAttribute
+    partial class CustomDescription : DescriptionAttribute
     {
 
         public CustomDescription(string desc) : base(desc)
@@ -50,7 +50,7 @@ namespace Intersect.Editor.Maps
 
     }
 
-    class MapProperties
+    partial class MapProperties
     {
 
         private MapBase mMyMap;
@@ -104,7 +104,7 @@ namespace Intersect.Editor.Maps
         {
             get
             {
-                var musicList = new List<string> {Strings.General.none};
+                var musicList = new List<string> {Strings.General.None};
                 musicList.AddRange(GameContentManager.SmartSortedMusicNames);
                 mMyMap.Music = musicList.Find(
                     item => string.Equals(item, mMyMap.Music, StringComparison.InvariantCultureIgnoreCase)
@@ -129,7 +129,7 @@ namespace Intersect.Editor.Maps
         {
             get
             {
-                var soundList = new List<string> {Strings.General.none};
+                var soundList = new List<string> {Strings.General.None};
                 soundList.AddRange(GameContentManager.SmartSortedSoundNames);
                 mMyMap.Sound = soundList.Find(
                     item => string.Equals(item, mMyMap.Sound, StringComparison.InvariantCultureIgnoreCase)
@@ -333,7 +333,7 @@ namespace Intersect.Editor.Maps
             {
                 var fogList = new List<string>
                 {
-                    Strings.General.none
+                    Strings.General.None
                 };
 
                 fogList.AddRange(GameContentManager.GetSmartSortedTextureNames(GameContentManager.TextureType.Fog));
@@ -412,7 +412,7 @@ namespace Intersect.Editor.Maps
             {
                 var WeatherList = new List<string>
                 {
-                    Strings.General.none
+                    Strings.General.None
                 };
 
                 WeatherList.AddRange(AnimationBase.Names);
@@ -502,7 +502,7 @@ namespace Intersect.Editor.Maps
             {
                 var imageList = new List<string>
                 {
-                    Strings.General.none
+                    Strings.General.None
                 };
 
                 imageList.AddRange(GameContentManager.GetSmartSortedTextureNames(GameContentManager.TextureType.Image));
@@ -532,7 +532,7 @@ namespace Intersect.Editor.Maps
             {
                 var imageList = new List<string>
                 {
-                    Strings.General.none
+                    Strings.General.None
                 };
 
                 imageList.AddRange(GameContentManager.GetSmartSortedTextureNames(GameContentManager.TextureType.Image));
@@ -554,9 +554,26 @@ namespace Intersect.Editor.Maps
             }
         }
 
+        [CustomCategory("player"), CustomDescription("hideequipmentdesc"), CustomDisplayName("hideequipment"),
+         DefaultValue(false)]
+        public bool HideEquipment
+        {
+            get => mMyMap.HideEquipment;
+            set
+            {
+                if (mMyMap.HideEquipment != value)
+                {
+                    Globals.MapEditorWindow.PrepUndoState();
+                    mMyMap.HideEquipment = value;
+                    Graphics.TilePreviewUpdated = true;
+                    Globals.MapEditorWindow.AddUndoState();
+                }
+            }
+        }
+
     }
 
-    public class MapMusicProperty : StringConverter
+    public partial class MapMusicProperty : StringConverter
     {
 
         public override bool GetStandardValuesSupported(ITypeDescriptorContext context)
@@ -576,7 +593,7 @@ namespace Intersect.Editor.Maps
         {
             var musicList = new List<string>
             {
-                Strings.General.none
+                Strings.General.None
             };
 
             musicList.AddRange(GameContentManager.SmartSortedMusicNames);
@@ -586,7 +603,7 @@ namespace Intersect.Editor.Maps
 
     }
 
-    public class MapSoundProperty : StringConverter
+    public partial class MapSoundProperty : StringConverter
     {
 
         public override bool GetStandardValuesSupported(ITypeDescriptorContext context)
@@ -606,7 +623,7 @@ namespace Intersect.Editor.Maps
         {
             var soundList = new List<string>
             {
-                Strings.General.none
+                Strings.General.None
             };
 
             soundList.AddRange(GameContentManager.SmartSortedSoundNames);
@@ -616,7 +633,7 @@ namespace Intersect.Editor.Maps
 
     }
 
-    public class MapFogProperty : StringConverter
+    public partial class MapFogProperty : StringConverter
     {
 
         public override bool GetStandardValuesSupported(ITypeDescriptorContext context)
@@ -636,7 +653,7 @@ namespace Intersect.Editor.Maps
         {
             var fogList = new List<string>
             {
-                Strings.General.none
+                Strings.General.None
             };
 
             fogList.AddRange(GameContentManager.GetSmartSortedTextureNames(GameContentManager.TextureType.Fog));
@@ -646,7 +663,7 @@ namespace Intersect.Editor.Maps
 
     }
 
-    public class MapImageProperty : StringConverter
+    public partial class MapImageProperty : StringConverter
     {
 
         public override bool GetStandardValuesSupported(ITypeDescriptorContext context)
@@ -666,7 +683,7 @@ namespace Intersect.Editor.Maps
         {
             var imageList = new List<string>
             {
-                Strings.General.none
+                Strings.General.None
             };
 
             imageList.AddRange(GameContentManager.GetSmartSortedTextureNames(GameContentManager.TextureType.Image));
@@ -676,7 +693,7 @@ namespace Intersect.Editor.Maps
 
     }
 
-    public class MapZoneProperty : StringConverter
+    public partial class MapZoneProperty : StringConverter
     {
 
         public override bool GetStandardValuesSupported(ITypeDescriptorContext context)
@@ -705,7 +722,7 @@ namespace Intersect.Editor.Maps
 
     }
 
-    public class MapWeatherProperty : StringConverter
+    public partial class MapWeatherProperty : StringConverter
     {
 
         public override bool GetStandardValuesSupported(ITypeDescriptorContext context)
@@ -725,7 +742,7 @@ namespace Intersect.Editor.Maps
         {
             var WeatherList = new List<string>
             {
-                Strings.General.none
+                Strings.General.None
             };
 
             WeatherList.AddRange(AnimationBase.Names);

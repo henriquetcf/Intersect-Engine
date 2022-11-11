@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Globalization;
+using System.Reflection;
 
 namespace Intersect.Server.Core
 {
@@ -9,7 +10,7 @@ namespace Intersect.Server.Core
     /// Please do not modify this without JC's approval! If namespaces are referenced that are not SYSTEM.* then the server won't run cross platform.
     /// If you want to add startup instructions see Classes/ServerStart.cs
     /// </summary>
-    public static class Program
+    public static partial class Program
     {
 
         [STAThread]
@@ -24,19 +25,13 @@ namespace Intersect.Server.Core
             }
             catch (Exception exception)
             {
-                var type = Type.GetType("Intersect.Server.Core.Bootstrapper", true);
+                var type = Type.GetType("Intersect.Server.Core.ServerContext", true);
                 Debug.Assert(type != null, "type != null");
 
-                var staticMethodInfo = type.GetMethod("OnUnhandledException");
+                var staticMethodInfo = type.GetMethod("DispatchUnhandledException", BindingFlags.Static | BindingFlags.NonPublic);
                 Debug.Assert(staticMethodInfo != null, nameof(staticMethodInfo) + " != null");
 
-                staticMethodInfo.Invoke(
-                    null, new object[]
-                    {
-                        null,
-                        new UnhandledExceptionEventArgs(exception.InnerException ?? exception, true)
-                    }
-                );
+                staticMethodInfo.Invoke(null, new object[] { exception.InnerException ?? exception, true });
             }
         }
 

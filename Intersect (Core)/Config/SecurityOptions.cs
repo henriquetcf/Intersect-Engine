@@ -5,12 +5,12 @@ using Newtonsoft.Json;
 namespace Intersect.Config
 {
 
-    public class SecurityOptions
+    public partial class SecurityOptions
     {
 
         public List<string> IpBlacklist = new List<string>();
 
-        [JsonProperty("Packets")] public PacketOptions PacketOpts = new PacketOptions();
+        [JsonProperty("Packets")] public PacketSecurityOptions PacketOpts = new PacketSecurityOptions();
 
         public bool CheckIp(string ip)
         {

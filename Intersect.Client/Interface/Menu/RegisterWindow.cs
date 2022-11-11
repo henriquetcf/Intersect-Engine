@@ -5,6 +5,7 @@ using System.Text;
 
 using Intersect.Client.Core;
 using Intersect.Client.Framework.File_Management;
+using Intersect.Client.Framework.Graphics;
 using Intersect.Client.Framework.Gwen.Control;
 using Intersect.Client.Framework.Gwen.Control.EventArguments;
 using Intersect.Client.General;
@@ -16,7 +17,7 @@ using Intersect.Utilities;
 namespace Intersect.Client.Interface.Menu
 {
 
-    public class RegisterWindow
+    public partial class RegisterWindow
     {
 
         private Button mBackBtn;

@@ -6,14 +6,12 @@ using System.Linq;
 using Intersect.Collections;
 using Intersect.Enums;
 
-using JetBrains.Annotations;
-
 using Newtonsoft.Json;
 
 namespace Intersect.Models
 {
 
-    public abstract class DatabaseObject<TObject> : IDatabaseObject where TObject : DatabaseObject<TObject>
+    public abstract partial class DatabaseObject<TObject> : IDatabaseObject where TObject : DatabaseObject<TObject>
     {
 
         public const string Deleted = "ERR_DELETED";
@@ -31,15 +29,14 @@ namespace Intersect.Models
             TimeCreated = DateTime.Now.ToBinary();
         }
 
-        public static KeyValuePair<Guid, string>[] ItemPairs => Lookup.OrderBy(p => p.Value?.TimeCreated)
+        public static KeyValuePair<Guid, string>[] ItemPairs => Lookup.OrderBy(p => p.Value?.Name)
             .Select(pair => new KeyValuePair<Guid, string>(pair.Key, pair.Value?.Name ?? Deleted))
             .ToArray();
 
-        public static string[] Names => Lookup.OrderBy(p => p.Value?.TimeCreated)
+        public static string[] Names => Lookup.OrderBy(p => p.Value?.Name)
             .Select(pair => pair.Value?.Name ?? Deleted)
             .ToArray();
 
-        [NotNull]
         public static DatabaseObjectLookup Lookup => LookupUtils.GetLookup(typeof(TObject));
 
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
@@ -109,22 +106,22 @@ namespace Intersect.Models
 
         public static Guid IdFromList(int listIndex)
         {
-            if (listIndex < 0 || listIndex > Lookup.KeyList.Count)
+            if (listIndex < 0 || listIndex >= Lookup.KeyList.Count)
             {
                 return Guid.Empty;
             }
 
-            return Lookup.KeyList.OrderBy(pairs => Lookup[pairs]?.TimeCreated).ToArray()[listIndex];
+            return Lookup.KeyList.OrderBy(pairs => Lookup[pairs]?.Name).ToArray()[listIndex];
         }
 
         public static TObject FromList(int listIndex)
         {
-            if (listIndex < 0 || listIndex > Lookup.ValueList.Count)
+            if (listIndex < 0 || listIndex >= Lookup.ValueList.Count)
             {
                 return null;
             }
 
-            return (TObject) Lookup.ValueList.OrderBy(databaseObject => databaseObject?.TimeCreated).ToArray()[
+            return (TObject) Lookup.ValueList.OrderBy(databaseObject => databaseObject?.Name).ToArray()[
                 listIndex];
         }
 
@@ -135,7 +132,7 @@ namespace Intersect.Models
 
         public static int ListIndex(Guid id)
         {
-            return Lookup.KeyList.OrderBy(pairs => Lookup[pairs]?.TimeCreated).ToList().IndexOf(id);
+            return Lookup.KeyList.OrderBy(pairs => Lookup[pairs]?.Name).ToList().IndexOf(id);
         }
 
         public static TObject Get(Guid id)
@@ -151,6 +148,12 @@ namespace Intersect.Models
         public static string[] GetNameList()
         {
             return Lookup.Select(pair => pair.Value?.Name ?? Deleted).ToArray();
+        }
+
+        public static bool TryGet(Guid id, out TObject databaseObject)
+        {
+            databaseObject = Get(id);
+            return databaseObject != default;
         }
 
     }

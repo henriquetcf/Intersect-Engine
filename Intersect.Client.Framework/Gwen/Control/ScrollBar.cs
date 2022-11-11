@@ -12,7 +12,7 @@ namespace Intersect.Client.Framework.Gwen.Control
     /// <summary>
     ///     Base class for scrollbars.
     /// </summary>
-    public class ScrollBar : Base
+    public partial class ScrollBar : Base
     {
 
         protected readonly ScrollBarBar mBar;
@@ -134,7 +134,7 @@ namespace Intersect.Client.Framework.Gwen.Control
             {
                 SetBackgroundTemplate(
                     GameContentManager.Current.GetTexture(
-                        GameContentManager.TextureType.Gui, (string) obj["BackgroundTemplate"]
+                        Framework.Content.TextureType.Gui, (string) obj["BackgroundTemplate"]
                     ), (string) obj["BackgroundTemplate"]
                 );
             }
@@ -164,7 +164,7 @@ namespace Intersect.Client.Framework.Gwen.Control
         {
             if (texture == null && !string.IsNullOrWhiteSpace(fileName))
             {
-                texture = GameContentManager.Current?.GetTexture(GameContentManager.TextureType.Gui, fileName);
+                texture = GameContentManager.Current?.GetTexture(Framework.Content.TextureType.Gui, fileName);
             }
 
             mBackgroundTemplateFilename = fileName;

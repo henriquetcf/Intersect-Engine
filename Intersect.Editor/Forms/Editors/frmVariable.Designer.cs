@@ -1,4 +1,4 @@
-﻿using DarkUI.Controls;
+using DarkUI.Controls;
 
 namespace Intersect.Editor.Forms.Editors
 {
@@ -33,18 +33,20 @@ namespace Intersect.Editor.Forms.Editors
             this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FrmSwitchVariable));
             this.grpTypes = new DarkUI.Controls.DarkGroupBox();
+            this.rdoUserVariables = new DarkUI.Controls.DarkRadioButton();
+            this.rdoGuildVariables = new DarkUI.Controls.DarkRadioButton();
             this.rdoGlobalVariables = new DarkUI.Controls.DarkRadioButton();
             this.rdoPlayerVariables = new DarkUI.Controls.DarkRadioButton();
             this.grpList = new DarkUI.Controls.DarkGroupBox();
             this.btnClearSearch = new DarkUI.Controls.DarkButton();
             this.txtSearch = new DarkUI.Controls.DarkTextBox();
-            this.lstVariables = new System.Windows.Forms.TreeView();
-            this.imageList = new System.Windows.Forms.ImageList(this.components);
+            this.lstGameObjects = new Intersect.Editor.Forms.Controls.GameObjectList();
             this.grpEditor = new DarkUI.Controls.DarkGroupBox();
             this.btnAddFolder = new DarkUI.Controls.DarkButton();
             this.lblFolder = new System.Windows.Forms.Label();
             this.cmbFolder = new DarkUI.Controls.DarkComboBox();
             this.grpValue = new DarkUI.Controls.DarkGroupBox();
+            this.txtStringValue = new DarkUI.Controls.DarkTextBox();
             this.cmbBooleanValue = new DarkUI.Controls.DarkComboBox();
             this.nudVariableValue = new DarkUI.Controls.DarkNumericUpDown();
             this.label1 = new System.Windows.Forms.Label();
@@ -62,10 +64,9 @@ namespace Intersect.Editor.Forms.Editors
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             this.toolStripItemDelete = new System.Windows.Forms.ToolStripButton();
             this.toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
-            this.btnChronological = new System.Windows.Forms.ToolStripButton();
+            this.btnAlphabetical = new System.Windows.Forms.ToolStripButton();
             this.toolStripSeparator4 = new System.Windows.Forms.ToolStripSeparator();
             this.toolStripItemUndo = new System.Windows.Forms.ToolStripButton();
-            this.txtStringValue = new DarkUI.Controls.DarkTextBox();
             this.grpTypes.SuspendLayout();
             this.grpList.SuspendLayout();
             this.grpEditor.SuspendLayout();
@@ -79,6 +80,8 @@ namespace Intersect.Editor.Forms.Editors
             // 
             this.grpTypes.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(45)))), ((int)(((byte)(45)))), ((int)(((byte)(48)))));
             this.grpTypes.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(90)))), ((int)(((byte)(90)))), ((int)(((byte)(90)))));
+            this.grpTypes.Controls.Add(this.rdoUserVariables);
+            this.grpTypes.Controls.Add(this.rdoGuildVariables);
             this.grpTypes.Controls.Add(this.rdoGlobalVariables);
             this.grpTypes.Controls.Add(this.rdoPlayerVariables);
             this.grpTypes.ForeColor = System.Drawing.Color.Gainsboro;
@@ -88,6 +91,26 @@ namespace Intersect.Editor.Forms.Editors
             this.grpTypes.TabIndex = 0;
             this.grpTypes.TabStop = false;
             this.grpTypes.Text = "Variable Type";
+            // 
+            // rdoUserVariables
+            // 
+            this.rdoUserVariables.AutoSize = true;
+            this.rdoUserVariables.Location = new System.Drawing.Point(352, 20);
+            this.rdoUserVariables.Name = "rdoUserVariables";
+            this.rdoUserVariables.Size = new System.Drawing.Size(111, 17);
+            this.rdoUserVariables.TabIndex = 5;
+            this.rdoUserVariables.Text = "User Variables";
+            this.rdoUserVariables.CheckedChanged += new System.EventHandler(this.rdoUserVariables_CheckedChanged);
+            // 
+            // rdoGuildVariables
+            // 
+            this.rdoGuildVariables.AutoSize = true;
+            this.rdoGuildVariables.Location = new System.Drawing.Point(242, 20);
+            this.rdoGuildVariables.Name = "rdoGuildVariables";
+            this.rdoGuildVariables.Size = new System.Drawing.Size(95, 17);
+            this.rdoGuildVariables.TabIndex = 4;
+            this.rdoGuildVariables.Text = "Guild Variables";
+            this.rdoGuildVariables.CheckedChanged += new System.EventHandler(this.rdoGuildVariables_CheckedChanged);
             // 
             // rdoGlobalVariables
             // 
@@ -117,7 +140,7 @@ namespace Intersect.Editor.Forms.Editors
             this.grpList.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(90)))), ((int)(((byte)(90)))), ((int)(((byte)(90)))));
             this.grpList.Controls.Add(this.btnClearSearch);
             this.grpList.Controls.Add(this.txtSearch);
-            this.grpList.Controls.Add(this.lstVariables);
+            this.grpList.Controls.Add(this.lstGameObjects);
             this.grpList.ForeColor = System.Drawing.Color.Gainsboro;
             this.grpList.Location = new System.Drawing.Point(8, 44);
             this.grpList.Name = "grpList";
@@ -151,30 +174,20 @@ namespace Intersect.Editor.Forms.Editors
             this.txtSearch.Enter += new System.EventHandler(this.txtSearch_Enter);
             this.txtSearch.Leave += new System.EventHandler(this.txtSearch_Leave);
             // 
-            // lstVariables
+            // lstGameObjects
             // 
-            this.lstVariables.AllowDrop = true;
-            this.lstVariables.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(60)))), ((int)(((byte)(63)))), ((int)(((byte)(65)))));
-            this.lstVariables.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.lstVariables.ForeColor = System.Drawing.Color.Gainsboro;
-            this.lstVariables.HideSelection = false;
-            this.lstVariables.ImageIndex = 0;
-            this.lstVariables.ImageList = this.imageList;
-            this.lstVariables.LineColor = System.Drawing.Color.FromArgb(((int)(((byte)(150)))), ((int)(((byte)(150)))), ((int)(((byte)(150)))));
-            this.lstVariables.Location = new System.Drawing.Point(6, 46);
-            this.lstVariables.Name = "lstVariables";
-            this.lstVariables.SelectedImageIndex = 0;
-            this.lstVariables.Size = new System.Drawing.Size(188, 330);
-            this.lstVariables.TabIndex = 32;
-            this.lstVariables.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.lstVariables_AfterSelect);
-            this.lstVariables.NodeMouseClick += new System.Windows.Forms.TreeNodeMouseClickEventHandler(this.lstVariables_NodeMouseClick);
-            // 
-            // imageList
-            // 
-            this.imageList.ImageStream = ((System.Windows.Forms.ImageListStreamer)(resources.GetObject("imageList.ImageStream")));
-            this.imageList.TransparentColor = System.Drawing.Color.Transparent;
-            this.imageList.Images.SetKeyName(0, "folder_Open_16xLG.png");
-            this.imageList.Images.SetKeyName(1, "LegacyPackage_16x.png");
+            this.lstGameObjects.AllowDrop = true;
+            this.lstGameObjects.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(60)))), ((int)(((byte)(63)))), ((int)(((byte)(65)))));
+            this.lstGameObjects.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.lstGameObjects.ForeColor = System.Drawing.Color.Gainsboro;
+            this.lstGameObjects.HideSelection = false;
+            this.lstGameObjects.ImageIndex = 0;
+            this.lstGameObjects.LineColor = System.Drawing.Color.FromArgb(((int)(((byte)(150)))), ((int)(((byte)(150)))), ((int)(((byte)(150)))));
+            this.lstGameObjects.Location = new System.Drawing.Point(6, 46);
+            this.lstGameObjects.Name = "lstGameObjects";
+            this.lstGameObjects.SelectedImageIndex = 0;
+            this.lstGameObjects.Size = new System.Drawing.Size(188, 330);
+            this.lstGameObjects.TabIndex = 32;
             // 
             // grpEditor
             // 
@@ -225,7 +238,6 @@ namespace Intersect.Editor.Forms.Editors
             this.cmbFolder.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(90)))), ((int)(((byte)(90)))), ((int)(((byte)(90)))));
             this.cmbFolder.BorderStyle = System.Windows.Forms.ButtonBorderStyle.Solid;
             this.cmbFolder.ButtonColor = System.Drawing.Color.FromArgb(((int)(((byte)(43)))), ((int)(((byte)(43)))), ((int)(((byte)(43)))));
-            this.cmbFolder.ButtonIcon = ((System.Drawing.Bitmap)(resources.GetObject("cmbFolder.ButtonIcon")));
             this.cmbFolder.DrawDropdownHoverOutline = false;
             this.cmbFolder.DrawFocusRectangle = false;
             this.cmbFolder.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawFixed;
@@ -256,13 +268,24 @@ namespace Intersect.Editor.Forms.Editors
             this.grpValue.TabStop = false;
             this.grpValue.Text = "Value";
             // 
+            // txtStringValue
+            // 
+            this.txtStringValue.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(69)))), ((int)(((byte)(73)))), ((int)(((byte)(74)))));
+            this.txtStringValue.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.txtStringValue.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(220)))), ((int)(((byte)(220)))), ((int)(((byte)(220)))));
+            this.txtStringValue.Location = new System.Drawing.Point(6, 19);
+            this.txtStringValue.Name = "txtStringValue";
+            this.txtStringValue.Size = new System.Drawing.Size(239, 20);
+            this.txtStringValue.TabIndex = 61;
+            this.txtStringValue.Visible = false;
+            this.txtStringValue.TextChanged += new System.EventHandler(this.txtStringValue_TextChanged);
+            // 
             // cmbBooleanValue
             // 
             this.cmbBooleanValue.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(69)))), ((int)(((byte)(73)))), ((int)(((byte)(74)))));
             this.cmbBooleanValue.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(90)))), ((int)(((byte)(90)))), ((int)(((byte)(90)))));
             this.cmbBooleanValue.BorderStyle = System.Windows.Forms.ButtonBorderStyle.Solid;
             this.cmbBooleanValue.ButtonColor = System.Drawing.Color.FromArgb(((int)(((byte)(43)))), ((int)(((byte)(43)))), ((int)(((byte)(43)))));
-            this.cmbBooleanValue.ButtonIcon = ((System.Drawing.Bitmap)(resources.GetObject("cmbBooleanValue.ButtonIcon")));
             this.cmbBooleanValue.DrawDropdownHoverOutline = false;
             this.cmbBooleanValue.DrawFocusRectangle = false;
             this.cmbBooleanValue.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawFixed;
@@ -316,7 +339,6 @@ namespace Intersect.Editor.Forms.Editors
             this.cmbVariableType.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(90)))), ((int)(((byte)(90)))), ((int)(((byte)(90)))));
             this.cmbVariableType.BorderStyle = System.Windows.Forms.ButtonBorderStyle.Solid;
             this.cmbVariableType.ButtonColor = System.Drawing.Color.FromArgb(((int)(((byte)(43)))), ((int)(((byte)(43)))), ((int)(((byte)(43)))));
-            this.cmbVariableType.ButtonIcon = ((System.Drawing.Bitmap)(resources.GetObject("cmbVariableType.ButtonIcon")));
             this.cmbVariableType.DrawDropdownHoverOutline = false;
             this.cmbVariableType.DrawFocusRectangle = false;
             this.cmbVariableType.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawFixed;
@@ -430,7 +452,7 @@ namespace Intersect.Editor.Forms.Editors
             this.toolStripSeparator1,
             this.toolStripItemDelete,
             this.toolStripSeparator2,
-            this.btnChronological,
+            this.btnAlphabetical,
             this.toolStripSeparator4,
             this.toolStripItemUndo});
             this.toolStrip.Location = new System.Drawing.Point(3, 16);
@@ -449,7 +471,7 @@ namespace Intersect.Editor.Forms.Editors
             this.toolStripItemNew.Name = "toolStripItemNew";
             this.toolStripItemNew.Size = new System.Drawing.Size(23, 22);
             this.toolStripItemNew.Text = "New";
-            this.toolStripItemNew.Click += new System.EventHandler(this.btnNew_Click);
+            this.toolStripItemNew.Click += new System.EventHandler(this.toolStripItemNew_Click);
             // 
             // toolStripSeparator1
             // 
@@ -468,7 +490,7 @@ namespace Intersect.Editor.Forms.Editors
             this.toolStripItemDelete.Name = "toolStripItemDelete";
             this.toolStripItemDelete.Size = new System.Drawing.Size(23, 22);
             this.toolStripItemDelete.Text = "Delete";
-            this.toolStripItemDelete.Click += new System.EventHandler(this.btnDelete_Click);
+            this.toolStripItemDelete.Click += new System.EventHandler(this.toolStripItemDelete_Click);
             // 
             // toolStripSeparator2
             // 
@@ -477,16 +499,16 @@ namespace Intersect.Editor.Forms.Editors
             this.toolStripSeparator2.Name = "toolStripSeparator2";
             this.toolStripSeparator2.Size = new System.Drawing.Size(6, 25);
             // 
-            // btnChronological
+            // btnAlphabetical
             // 
-            this.btnChronological.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
-            this.btnChronological.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(220)))), ((int)(((byte)(220)))), ((int)(((byte)(220)))));
-            this.btnChronological.Image = ((System.Drawing.Image)(resources.GetObject("btnChronological.Image")));
-            this.btnChronological.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.btnChronological.Name = "btnChronological";
-            this.btnChronological.Size = new System.Drawing.Size(23, 22);
-            this.btnChronological.Text = "Order Chronologically";
-            this.btnChronological.Click += new System.EventHandler(this.btnChronological_Click);
+            this.btnAlphabetical.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
+            this.btnAlphabetical.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(220)))), ((int)(((byte)(220)))), ((int)(((byte)(220)))));
+            this.btnAlphabetical.Image = ((System.Drawing.Image)(resources.GetObject("btnAlphabetical.Image")));
+            this.btnAlphabetical.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.btnAlphabetical.Name = "btnAlphabetical";
+            this.btnAlphabetical.Size = new System.Drawing.Size(23, 22);
+            this.btnAlphabetical.Text = "Order Chronologically";
+            this.btnAlphabetical.Click += new System.EventHandler(this.btnAlphabetical_Click);
             // 
             // toolStripSeparator4
             // 
@@ -505,19 +527,7 @@ namespace Intersect.Editor.Forms.Editors
             this.toolStripItemUndo.Name = "toolStripItemUndo";
             this.toolStripItemUndo.Size = new System.Drawing.Size(23, 22);
             this.toolStripItemUndo.Text = "Undo";
-            this.toolStripItemUndo.Click += new System.EventHandler(this.btnUndo_Click);
-            // 
-            // txtStringValue
-            // 
-            this.txtStringValue.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(69)))), ((int)(((byte)(73)))), ((int)(((byte)(74)))));
-            this.txtStringValue.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.txtStringValue.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(220)))), ((int)(((byte)(220)))), ((int)(((byte)(220)))));
-            this.txtStringValue.Location = new System.Drawing.Point(6, 19);
-            this.txtStringValue.Name = "txtStringValue";
-            this.txtStringValue.Size = new System.Drawing.Size(239, 20);
-            this.txtStringValue.TabIndex = 61;
-            this.txtStringValue.Visible = false;
-            this.txtStringValue.TextChanged += new System.EventHandler(this.txtStringValue_TextChanged);
+            this.toolStripItemUndo.Click += new System.EventHandler(this.toolStripItemUndo_Click);
             // 
             // FrmSwitchVariable
             // 
@@ -532,7 +542,6 @@ namespace Intersect.Editor.Forms.Editors
             this.Controls.Add(this.grpTypes);
             this.Controls.Add(this.grpVariables);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
-            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MaximizeBox = false;
             this.Name = "FrmSwitchVariable";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
@@ -578,16 +587,17 @@ namespace Intersect.Editor.Forms.Editors
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
         private System.Windows.Forms.ToolStripButton toolStripItemDelete;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator2;
-        private System.Windows.Forms.ToolStripButton btnChronological;
+        private System.Windows.Forms.ToolStripButton btnAlphabetical;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator4;
         public System.Windows.Forms.ToolStripButton toolStripItemUndo;
         private DarkButton btnClearSearch;
         private DarkTextBox txtSearch;
-        public System.Windows.Forms.TreeView lstVariables;
         private DarkButton btnAddFolder;
         private System.Windows.Forms.Label lblFolder;
         private DarkComboBox cmbFolder;
-        private System.Windows.Forms.ImageList imageList;
         private DarkTextBox txtStringValue;
+        private Controls.GameObjectList lstGameObjects;
+        private DarkRadioButton rdoGuildVariables;
+        private DarkRadioButton rdoUserVariables;
     }
 }

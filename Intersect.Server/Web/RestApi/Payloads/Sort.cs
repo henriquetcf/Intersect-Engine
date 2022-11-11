@@ -2,19 +2,17 @@
 using System.Collections.Generic;
 using System.Linq;
 
-using JetBrains.Annotations;
-
 namespace Intersect.Server.Web.RestApi.Payloads
 {
 
-    public struct Sort
+    public partial struct Sort
     {
 
         public string By { get; set; }
 
         public SortDirection Direction { get; set; }
 
-        public static Sort From([NotNull] string sortBy, SortDirection sortDirection)
+        public static Sort From(string sortBy, SortDirection sortDirection)
         {
             return new Sort
             {

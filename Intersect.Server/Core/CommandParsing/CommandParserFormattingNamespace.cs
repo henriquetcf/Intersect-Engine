@@ -1,23 +1,18 @@
 ﻿using Intersect.Localization;
 
-using JetBrains.Annotations;
-
 using Newtonsoft.Json;
 
 namespace Intersect.Server.Core.CommandParsing
 {
 
-    public sealed class CommandParserFormattingNamespace : LocaleNamespace
+    public sealed partial class CommandParserFormattingNamespace : LocaleNamespace
     {
 
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] [NotNull]
-        public readonly LocalizedString Optional = @"[{00}]";
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]        public readonly LocalizedString Optional = @"[{00}]";
 
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] [NotNull]
-        public readonly LocalizedString Type = @":{00}";
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]        public readonly LocalizedString Type = @":{00}";
 
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] [NotNull]
-        public readonly LocalizedString Usage = @"Usage: {00}";
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]        public readonly LocalizedString Usage = @"Usage: {00}";
 
     }
 

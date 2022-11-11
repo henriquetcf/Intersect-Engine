@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 using System.ComponentModel.DataAnnotations.Schema;
-
+using System.Linq;
 using Intersect.Enums;
 using Intersect.GameObjects.Conditions;
 using Intersect.GameObjects.Events;
@@ -14,7 +14,7 @@ using Newtonsoft.Json;
 namespace Intersect.GameObjects
 {
 
-    public class SpellBase : DatabaseObject<SpellBase>, IFolderable
+    public partial class SpellBase : DatabaseObject<SpellBase>, IFolderable
     {
 
         [NotMapped] public int[] VitalCost = new int[(int) Vitals.VitalCount];
@@ -51,6 +51,7 @@ namespace Intersect.GameObjects
         [Column("HitAnimation")]
         public Guid HitAnimationId { get; set; }
 
+
         [NotMapped]
         [JsonIgnore]
         public AnimationBase HitAnimation
@@ -59,10 +60,36 @@ namespace Intersect.GameObjects
             set => HitAnimationId = value?.Id ?? Guid.Empty;
         }
 
+        [Column("TickAnimation")]
+        public Guid TickAnimationId { get; set; }
+
+        [NotMapped]
+        [JsonIgnore]
+        public AnimationBase TickAnimation
+        {
+            get => AnimationBase.Get(TickAnimationId);
+            set => TickAnimationId = value?.Id ?? Guid.Empty;
+        }
+
         //Spell Times
         public int CastDuration { get; set; }
 
         public int CooldownDuration { get; set; }
+
+        /// <summary>
+        /// Defines which cooldown group this spell belongs to.
+        /// </summary>
+        public string CooldownGroup { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Configures whether this should not trigger and be triggered by the global cooldown.
+        /// </summary>
+        public bool IgnoreGlobalCooldown { get; set; } = false;
+
+        /// <summary>
+        /// Configured whether the cooldown of this spell should be reduced by the players cooldown reduction
+        /// </summary>
+        public bool IgnoreCooldownReduction { get; set; } = false;
 
         //Spell Bound
         public bool Bound { get; set; }
@@ -78,6 +105,10 @@ namespace Intersect.GameObjects
 
         [NotMapped]
         public ConditionLists CastingRequirements { get; set; } = new ConditionLists();
+
+        public string CannotCastMessage { get; set; } = "";
+
+        public string CastSpriteOverride { get; set; }
 
         //Combat Info
         public SpellCombatData Combat { get; set; } = new SpellCombatData();
@@ -112,10 +143,27 @@ namespace Intersect.GameObjects
         /// <inheritdoc />
         public string Folder { get; set; } = "";
 
+        /// <summary>
+        /// Gets an array of all items sharing the provided cooldown group.
+        /// </summary>
+        /// <param name="cooldownGroup">The cooldown group to search for.</param>
+        /// <returns>Returns an array of <see cref="ItemBase"/> containing all items with the supplied cooldown group.</returns>
+        public static SpellBase[] GetCooldownGroup(string cooldownGroup)
+        {
+            cooldownGroup = cooldownGroup.Trim();
+
+            // No point looking for nothing.
+            if (string.IsNullOrWhiteSpace(cooldownGroup))
+            {
+                return Array.Empty<SpellBase>();
+            }
+
+            return Lookup.Where(i => ((SpellBase)i.Value).CooldownGroup.Trim() == cooldownGroup).Select(i => (SpellBase)i.Value).ToArray();
+        }
     }
 
     [Owned]
-    public class SpellCombatData
+    public partial class SpellCombatData
     {
 
         [NotMapped] public int[] VitalDiff = new int[(int) Vitals.VitalCount];
@@ -177,7 +225,7 @@ namespace Intersect.GameObjects
         [NotMapped]
         public int[] PercentageStatDiff { get; set; } = new int[(int) Stats.StatCount];
 
-        public int Scaling { get; set; } = 100;
+        public int Scaling { get; set; } = 0;
 
         public int ScalingStat { get; set; }
 
@@ -202,7 +250,7 @@ namespace Intersect.GameObjects
     }
 
     [Owned]
-    public class SpellWarpData
+    public partial class SpellWarpData
     {
 
         public Guid MapId { get; set; }
@@ -216,7 +264,7 @@ namespace Intersect.GameObjects
     }
 
     [Owned]
-    public class SpellDashOpts
+    public partial class SpellDashOpts
     {
 
         public bool IgnoreMapBlocks { get; set; }

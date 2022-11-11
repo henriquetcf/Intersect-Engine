@@ -1,0 +1,58 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net462</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Description>Example Client Plugin in Visual Basic - Part of the Intersect 2D Game Creation Suite</Description>
+    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+    <RootNamespace>Intersect.Examples.Plugin.ClientVB</RootNamespace>
+    <AssemblyName>Intersect.Examples.Plugin.ClientVB</AssemblyName>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <FileAlignment>512</FileAlignment>
+    <IntersectPluginType>client</IntersectPluginType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Assets\join-our-discord.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>Intersect.Examples.Plugin.ClientVB.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\join-our-discord.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Microsoft.VisualBasic" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Intersect.Client.Framework\Intersect.Client.Framework.csproj" />
+    <ProjectReference Include="..\Intersect.Examples.Plugin\Intersect.Examples.Plugin.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="MyProject\Resources.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="MyProject\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <!-- This has to go here to pick up IntersectPluginType -->
+  <Import Project="..\Plugin.build.props" />
+
+</Project>

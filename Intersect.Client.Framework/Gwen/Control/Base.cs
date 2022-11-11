@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -11,12 +11,13 @@ using Intersect.Client.Framework.Gwen.Control.EventArguments;
 using Intersect.Client.Framework.Gwen.ControlInternal;
 using Intersect.Client.Framework.Gwen.DragDrop;
 using Intersect.Client.Framework.Gwen.Input;
+using Intersect.Client.Framework.Audio;
 #if DEBUG || DIAGNOSTIC
-using Intersect.Logging;
 #endif
-
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Intersect.Logging;
+using Intersect.Client.Framework.Gwen.Renderer;
 
 namespace Intersect.Client.Framework.Gwen.Control
 {
@@ -24,8 +25,21 @@ namespace Intersect.Client.Framework.Gwen.Control
     /// <summary>
     ///     Base control class.
     /// </summary>
-    public class Base : IDisposable
+    public partial class Base : IDisposable
     {
+
+        private bool _inheritParentEnablementProperties;
+
+        internal bool InheritParentEnablementProperties
+        {
+            get => _inheritParentEnablementProperties;
+            set
+            {
+                _inheritParentEnablementProperties = value;
+                IsDisabled = Parent?.IsDisabled ?? IsDisabled;
+                IsHidden = Parent?.IsHidden ?? IsHidden;
+            }
+        }
 
         /// <summary>
         ///     Delegate used for all control event handlers.
@@ -135,10 +149,11 @@ namespace Intersect.Client.Framework.Gwen.Control
         /// <summary>
         ///     Initializes a new instance of the <see cref="Base" /> class.
         /// </summary>
-        /// <param name="parent">Parent control.</param>
-        public Base(Base parent = null, string name = "")
+        /// <param name="parent">parent control</param>
+        /// <param name="name">name of this control</param>
+        public Base(Base parent = null, string name = default)
         {
-            mName = name;
+            mName = name ?? string.Empty;
             mChildren = new List<Base>();
             mAccelerators = new Dictionary<string, GwenEventHandler<EventArgs>>();
 
@@ -195,18 +210,7 @@ namespace Intersect.Client.Framework.Gwen.Control
         /// <summary>
         ///     Logical list of children. If InnerPanel is not null, returns InnerPanel's children.
         /// </summary>
-        public List<Base> Children
-        {
-            get
-            {
-                if (mInnerPanel != null)
-                {
-                    return mInnerPanel.Children;
-                }
-
-                return mChildren;
-            }
-        }
+        public List<Base> Children => mInnerPanel?.Children ?? mChildren;
 
         /// <summary>
         ///     The logical parent. It's usually what you expect, the control you've parented it to.
@@ -221,18 +225,34 @@ namespace Intersect.Client.Framework.Gwen.Control
                     return;
                 }
 
-                if (mParent != null)
+                if (mParent != default)
                 {
-                    mParent.RemoveChild(this, false);
+                    OnDetaching(mParent);
                 }
+
+                mParent?.RemoveChild(this, false);
 
                 mParent = value;
-                mActualParent = null;
+                mActualParent = default;
 
-                if (mParent != null)
+                mParent?.AddChild(this);
+                if (mParent != default)
                 {
-                    mParent.AddChild(this);
+                    OnAttaching(mParent);
                 }
+            }
+        }
+
+        public Base Root
+        {
+            get
+            {
+                var root = this;
+                while (root.Parent != default)
+                {
+                    root = root.Parent;
+                }
+                return root;
             }
         }
 
@@ -257,6 +277,8 @@ namespace Intersect.Client.Framework.Gwen.Control
                 InvalidateParent();
             }
         }
+
+        protected bool HasSkin => mSkin != null || (mParent?.HasSkin ?? false);
 
         /// <summary>
         ///     Current skin.
@@ -423,9 +445,9 @@ namespace Intersect.Client.Framework.Gwen.Control
         /// <summary>
         ///     Indicates whether the control is disabled.
         /// </summary>
-        public bool IsDisabled
+        public virtual bool IsDisabled
         {
-            get => mDisabled;
+            get => (_inheritParentEnablementProperties && Parent != default) ? Parent.IsDisabled : mDisabled;
             set
             {
                 if (value == mDisabled)
@@ -433,7 +455,15 @@ namespace Intersect.Client.Framework.Gwen.Control
                     return;
                 }
 
-                mDisabled = value;
+                if (_inheritParentEnablementProperties)
+                {
+                    mDisabled = Parent?.IsDisabled ?? value;
+                }
+                else
+                {
+                    mDisabled = value;
+                }
+
                 Invalidate();
             }
         }
@@ -443,7 +473,7 @@ namespace Intersect.Client.Framework.Gwen.Control
         /// </summary>
         public virtual bool IsHidden
         {
-            get => mHidden;
+            get => (_inheritParentEnablementProperties && Parent != default) ? Parent.IsHidden : mHidden;
             set
             {
                 if (value == mHidden)
@@ -451,7 +481,15 @@ namespace Intersect.Client.Framework.Gwen.Control
                     return;
                 }
 
-                mHidden = value;
+                if (_inheritParentEnablementProperties)
+                {
+                    mHidden = Parent?.IsHidden ?? value;
+                }
+                else
+                {
+                    mHidden = value;
+                }
+
                 Invalidate();
                 InvalidateParent();
             }
@@ -492,6 +530,14 @@ namespace Intersect.Client.Framework.Gwen.Control
             get => mCursor;
             set => mCursor = value;
         }
+
+        public int GlobalX => X + (Parent?.GlobalX ?? 0);
+
+        public int GlobalY => Y + (Parent?.GlobalY ?? 0);
+
+        public Point PositionGlobal => new Point(X, Y) + (Parent?.PositionGlobal ?? Point.Empty);
+
+        public Rectangle BoundsGlobal => new Rectangle(PositionGlobal, Width, Height);
 
         /// <summary>
         ///     Indicates whether the control is tabable (can be focused by pressing Tab).
@@ -648,11 +694,6 @@ namespace Intersect.Client.Framework.Gwen.Control
             get => mDrawDebugOutlines;
             set
             {
-                if (mDrawDebugOutlines == value)
-                {
-                    return;
-                }
-
                 mDrawDebugOutlines = value;
                 foreach (var child in Children)
                 {
@@ -673,6 +714,8 @@ namespace Intersect.Client.Framework.Gwen.Control
         /// <returns></returns>
         public virtual Canvas Canvas => mParent?.GetCanvas();
 
+        public bool SkipSerialization { get; set; } = false;
+
         /// <summary>
         ///     Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
         /// </summary>
@@ -684,7 +727,18 @@ namespace Intersect.Client.Framework.Gwen.Control
                 return;
             }
 
-            var cache = Skin.Renderer.Ctt;
+            ICacheToTexture cache = default;
+
+#pragma warning disable CA1031 // Do not catch general exception types
+            try
+            {
+                cache = Skin.Renderer.Ctt;
+            }
+            catch
+            {
+                // If this fails it's because mSkin and mParent.Skin are null, we couldn't care less
+            }
+#pragma warning restore CA1031 // Do not catch general exception types
 
             if (ShouldCacheToTexture && cache != null)
             {
@@ -712,6 +766,8 @@ namespace Intersect.Client.Framework.Gwen.Control
 
             mChildren?.ForEach(child => child?.Dispose());
             mChildren?.Clear();
+
+            mInnerPanel?.Dispose();
 
             mDisposed = true;
             GC.SuppressFinalize(this);
@@ -825,25 +881,38 @@ namespace Intersect.Client.Framework.Gwen.Control
 
         public void LoadJsonUi(GameContentManager.UI stage, string resolution, bool saveOutput = true)
         {
-            try
+            if (string.IsNullOrWhiteSpace(Name))
             {
-                var obj = JsonConvert.DeserializeObject<JObject>(
-                    GameContentManager.Current?.GetUIJson(stage, Name, resolution)
-                );
+                Log.Warn($"Attempted to load layout for nameless {GetType().FullName}");
+                return;
+            }
 
-                if (obj != null)
+            _ = GameContentManager.Current?.GetLayout(stage, Name, resolution, false, (rawLayout, cacheHit) =>
+            {
+                if (!string.IsNullOrWhiteSpace(rawLayout))
                 {
-                    LoadJson(obj);
-                    ProcessAlignments();
-                }
-            }
-            catch (Exception exception)
-            {
-                //Log JSON UI Loading Error
-                throw new Exception("Error loading json ui for " + CanonicalName, exception);
-            }
+                    try
+                    {
+                        var obj = JsonConvert.DeserializeObject<JObject>(rawLayout);
 
-            GameContentManager.Current?.SaveUIJson(stage, Name, GetJsonUI(), resolution);
+                        if (obj != null)
+                        {
+                            LoadJson(obj);
+                            ProcessAlignments();
+                        }
+                    }
+                    catch (Exception exception)
+                    {
+                        //Log JSON UI Loading Error
+                        throw new Exception("Error loading json ui for " + CanonicalName, exception);
+                    }
+                }
+
+                if (!cacheHit && saveOutput)
+                {
+                    GameContentManager.Current?.SaveUIJson(stage, Name, GetJsonUI(), resolution);
+                }
+            });
         }
 
         public virtual void LoadJson(JToken obj)
@@ -860,26 +929,32 @@ namespace Intersect.Client.Framework.Gwen.Control
                             AddAlignment(Alignments.Top);
 
                             break;
+
                         case "bottom":
                             AddAlignment(Alignments.Bottom);
 
                             break;
+
                         case "left":
                             AddAlignment(Alignments.Left);
 
                             break;
+
                         case "right":
                             AddAlignment(Alignments.Right);
 
                             break;
+
                         case "center":
                             AddAlignment(Alignments.Center);
 
                             break;
+
                         case "centerh":
                             AddAlignment(Alignments.CenterH);
 
                             break;
+
                         case "centerv":
                             AddAlignment(Alignments.CenterV);
 
@@ -965,7 +1040,7 @@ namespace Intersect.Client.Framework.Gwen.Control
                 GameTexture texture = null;
                 if (!string.IsNullOrWhiteSpace(fileName))
                 {
-                    texture = GameContentManager.Current?.GetTexture(GameContentManager.TextureType.Gui, fileName);
+                    texture = GameContentManager.Current?.GetTexture(Framework.Content.TextureType.Gui, fileName);
                 }
 
                 mToolTipBackgroundFilename = fileName;
@@ -1206,14 +1281,18 @@ namespace Intersect.Client.Framework.Gwen.Control
         /// <param name="text">Tooltip text.</param>
         public virtual void SetToolTipText(string text)
         {
-            if (mHideToolTip || text == null)
+            if (mHideToolTip || string.IsNullOrWhiteSpace(text))
             {
+                if (this.ToolTip != null && this.ToolTip.Parent != null)
+                {
+                    this.ToolTip?.Parent.RemoveChild(this.ToolTip, true);
+                }
                 this.ToolTip = null;
 
                 return;
             }
 
-            var tooltip = new Label(this);
+            var tooltip = this.ToolTip != null ? (Label)this.ToolTip : new Label(this);
             tooltip.Text = text;
             tooltip.TextColorOverride = mToolTipFontColor ?? Skin.Colors.TooltipText;
             if (mToolTipFont != null)
@@ -1229,9 +1308,8 @@ namespace Intersect.Client.Framework.Gwen.Control
 
         protected virtual void UpdateToolTipProperties()
         {
-            if (ToolTip != null && ToolTip.GetType() == typeof(Label))
+            if (ToolTip != null && ToolTip is Label tooltip)
             {
-                var tooltip = (Label) ToolTip;
                 tooltip.TextColorOverride = mToolTipFontColor ?? Skin.Colors.TooltipText;
                 if (mToolTipFont != null)
                 {
@@ -1248,12 +1326,12 @@ namespace Intersect.Client.Framework.Gwen.Control
         /// <param name="recursive">Determines whether the operation should be carried recursively.</param>
         protected virtual void InvalidateChildren(bool recursive = false)
         {
-            foreach (var child in mChildren)
+            for (int i = 0; i < mChildren.Count; i++)
             {
-                child.Invalidate();
+                mChildren[i].Invalidate();
                 if (recursive)
                 {
-                    child.InvalidateChildren(true);
+                    mChildren[i].InvalidateChildren(true);
                 }
             }
 
@@ -1313,17 +1391,13 @@ namespace Intersect.Client.Framework.Gwen.Control
         /// </summary>
         public virtual void BringToFront()
         {
-            if (mParent != null && mParent.GetType() == typeof(Modal))
+            if (mParent != null && mParent is Modal modal)
             {
-                ((Modal) mParent).BringToFront();
+                modal.BringToFront();
             }
 
-            if (mActualParent == null)
-            {
-                return;
-            }
-
-            if (mActualParent.mChildren.Last() == this)
+            var last = mActualParent?.mChildren.LastOrDefault();
+            if (last == default || last == this)
             {
                 return;
             }
@@ -1369,33 +1443,52 @@ namespace Intersect.Client.Framework.Gwen.Control
         }
 
         /// <summary>
+        /// Finds the first child that matches the predicate.
+        /// </summary>
+        /// <param name="predicate">The <see cref="T:System.Predicate`1" /> delegate that defines the conditions of the element to search for.</param>
+        /// <param name="recurse">Whether or not the search will recurse through the element tree.</param>
+        /// <returns>The first element that matches the conditions defined by the specified predicate, if found; otherwise, the default value for type <see cref="Base" />.</returns>
+        public virtual Base Find(Predicate<Base> predicate, bool recurse = false)
+        {
+            var child = mChildren.Find(predicate);
+            if (child != null)
+            {
+                return child;
+            }
+
+            return recurse
+                ? mChildren.Select(selectChild => selectChild?.Find(predicate, true)).FirstOrDefault()
+                : default;
+        }
+
+        /// <summary>
+        /// Finds all children that match the predicate.
+        /// </summary>
+        /// <param name="predicate">The <see cref="T:System.Predicate`1" /> delegate that defines the conditions of the element to search for.</param>
+        /// <param name="recurse">Whether or not the search will recurse through the element tree.</param>
+        /// <returns>All elements that matches the conditions defined by the specified predicate.</returns>
+        public virtual IEnumerable<Base> FindAll(Predicate<Base> predicate, bool recurse = false)
+        {
+            var children = new List<Base>();
+
+            children.AddRange(mChildren.FindAll(predicate));
+
+            if (recurse)
+            {
+                children.AddRange(mChildren.SelectMany(selectChild => selectChild?.FindAll(predicate, true)));
+            }
+
+            return children;
+        }
+
+        /// <summary>
         ///     Finds a child by name.
         /// </summary>
         /// <param name="name">Child name.</param>
         /// <param name="recursive">Determines whether the search should be recursive.</param>
         /// <returns>Found control or null.</returns>
-        public virtual Base FindChildByName(string name, bool recursive = false)
-        {
-            var b = mChildren.Find(x => x.mName == name);
-            if (b != null)
-            {
-                return b;
-            }
-
-            if (recursive)
-            {
-                foreach (var child in mChildren)
-                {
-                    b = child.FindChildByName(name, true);
-                    if (b != null)
-                    {
-                        return b;
-                    }
-                }
-            }
-
-            return null;
-        }
+        public virtual Base FindChildByName(string name, bool recursive = false) =>
+            Find(child => string.Equals(child?.Name, name));
 
         /// <summary>
         ///     Attaches specified control as a child of this one.
@@ -1414,6 +1507,7 @@ namespace Intersect.Client.Framework.Gwen.Control
             {
                 mChildren.Add(child);
                 child.mActualParent = this;
+                child.DrawDebugOutlines = DrawDebugOutlines;
             }
 
             OnChildAdded(child);
@@ -1465,12 +1559,29 @@ namespace Intersect.Client.Framework.Gwen.Control
             }
         }
 
+        protected virtual void OnAttached(Base parent)
+        {
+        }
+
+        protected virtual void OnAttaching(Base newParent)
+        {
+        }
+
+        protected virtual void OnDetached()
+        {
+        }
+
+        protected virtual void OnDetaching(Base oldParent)
+        {
+        }
+
         /// <summary>
         ///     Handler invoked when a child is added.
         /// </summary>
         /// <param name="child">Child added.</param>
         protected virtual void OnChildAdded(Base child)
         {
+            child?.OnAttached(this);
             Invalidate();
         }
 
@@ -1480,6 +1591,7 @@ namespace Intersect.Client.Framework.Gwen.Control
         /// <param name="child">Child removed.</param>
         protected virtual void OnChildRemoved(Base child)
         {
+            child?.OnDetached();
             Invalidate();
         }
 
@@ -1713,9 +1825,9 @@ namespace Intersect.Client.Framework.Gwen.Control
         /// </summary>
         protected virtual void OnScaleChanged()
         {
-            foreach (var child in mChildren)
+            for (int i = 0; i < mChildren.Count; i++)
             {
-                child.OnScaleChanged();
+                mChildren[i].OnScaleChanged();
             }
         }
 
@@ -1785,14 +1897,14 @@ namespace Intersect.Client.Framework.Gwen.Control
                 if (mChildren.Count > 0)
                 {
                     //Now render my kids
-                    foreach (var child in mChildren)
+                    for (int i = 0; i < mChildren.Count; i++)
                     {
-                        if (child.IsHidden)
+                        if (mChildren[i].IsHidden)
                         {
                             continue;
                         }
 
-                        child.DoCacheRender(skin, master);
+                        mChildren[i].DoCacheRender(skin, master);
                     }
                 }
 
@@ -1819,7 +1931,7 @@ namespace Intersect.Client.Framework.Gwen.Control
         /// <param name="skin">Skin to use.</param>
         internal virtual void DoRender(Skin.Base skin)
         {
-            // If this control has a different skin, 
+            // If this control has a different skin,
             // then so does its children.
             if (mSkin != null)
             {
@@ -1834,16 +1946,37 @@ namespace Intersect.Client.Framework.Gwen.Control
             if (render.Ctt != null && ShouldCacheToTexture)
             {
                 DoCacheRender(skin, this);
-
-                return;
+                if (DrawDebugOutlines)
+                {
+                    RenderDebugOutlinesRecursive(skin);
+                }
             }
-
-            RenderRecursive(skin, Bounds);
-
-            if (DrawDebugOutlines)
+            else
             {
-                skin.DrawDebugOutlines(this);
+                RenderRecursive(skin, Bounds);
+                if (DrawDebugOutlines)
+                {
+                    skin.DrawDebugOutlines(this);
+                }
             }
+        }
+
+        internal virtual void RenderDebugOutlinesRecursive(Skin.Base skin)
+        {
+            var oldRenderOffset = skin.Renderer.RenderOffset;
+            skin.Renderer.AddRenderOffset(Bounds);
+            foreach (var child in mChildren)
+            {
+                if (child.IsHidden)
+                {
+                    continue;
+                }
+
+                child.RenderDebugOutlinesRecursive(skin);
+            }
+            skin.Renderer.RenderOffset = oldRenderOffset;
+
+            skin.DrawDebugOutlines(this);
         }
 
         /// <summary>
@@ -1888,14 +2021,16 @@ namespace Intersect.Client.Framework.Gwen.Control
             if (mChildren.Count > 0)
             {
                 //Now render my kids
-                foreach (var child in mChildren)
+                //For iteration prevents list size changed crash
+                for (int i = 0; i < mChildren.Count; i++)
                 {
-                    if (child.IsHidden)
+                    if (mChildren[i].IsHidden)
                     {
                         continue;
                     }
 
-                    child.DoRender(skin);
+                    mChildren[i].DoRender(skin);
+
                 }
             }
 
@@ -1932,9 +2067,9 @@ namespace Intersect.Client.Framework.Gwen.Control
 
             if (doChildren)
             {
-                foreach (var child in mChildren)
+                for (int i = 0; i < mChildren.Count; i++)
                 {
-                    child.SetSkin(skin, true);
+                    mChildren[i].SetSkin(skin, true);
                 }
             }
         }
@@ -2066,10 +2201,7 @@ namespace Intersect.Client.Framework.Gwen.Control
             //					Should be called by the event handler.
             OnMouseClickedLeft(x, y, true);
 
-            if (DoubleClicked != null)
-            {
-                DoubleClicked(this, new ClickedEventArgs(x, y, true));
-            }
+            DoubleClicked?.Invoke(this, new ClickedEventArgs(x, y, true));
         }
 
         /// <summary>
@@ -2090,10 +2222,7 @@ namespace Intersect.Client.Framework.Gwen.Control
             // [halfofastaple] See: OnMouseDoubleClicked for discussion on triggering single clicks in a double click event
             OnMouseClickedRight(x, y, true);
 
-            if (DoubleRightClicked != null)
-            {
-                DoubleRightClicked(this, new ClickedEventArgs(x, y, true));
-            }
+            DoubleRightClicked?.Invoke(this, new ClickedEventArgs(x, y, true));
         }
 
         /// <summary>
@@ -2140,8 +2269,7 @@ namespace Intersect.Client.Framework.Gwen.Control
                 var soundInstance = sound.CreateInstance();
                 if (soundInstance != null)
                 {
-                    soundInstance.SetVolume(100, false);
-                    soundInstance.Play();
+                    Canvas.PlayAndAddSound(soundInstance);
                 }
             }
         }
@@ -2167,6 +2295,10 @@ namespace Intersect.Client.Framework.Gwen.Control
             if (ToolTip != null)
             {
                 Gwen.ToolTip.Disable(this);
+            }
+            else if (Parent != null && Parent.ToolTip != null)
+            {
+                Gwen.ToolTip.Disable(Parent);
             }
 
             Redraw();
@@ -2270,6 +2402,8 @@ namespace Intersect.Client.Framework.Gwen.Control
             return this;
         }
 
+        public virtual Base GetControlAt(Point point) => GetControlAt(point.X, point.Y);
+
         /// <summary>
         ///     Lays out the control's interior according to alignment, padding, dock etc.
         /// </summary>
@@ -2312,76 +2446,76 @@ namespace Intersect.Client.Framework.Gwen.Control
             bounds.Y += mPadding.Top;
             bounds.Height -= mPadding.Top + mPadding.Bottom;
 
-            foreach (var child in mChildren)
+            for (int i = 0; i < mChildren.Count; i++)
             {
-                if (child.IsHidden)
+                if (mChildren[i].IsHidden)
                 {
                     continue;
                 }
 
-                var dock = child.Dock;
+                var dock = mChildren[i].Dock;
 
-                if (0 != (dock & Pos.Fill))
+                if (dock.HasFlag(Pos.Fill))
                 {
                     continue;
                 }
 
-                if (0 != (dock & Pos.Top))
+                if (dock.HasFlag(Pos.Top))
                 {
-                    var margin = child.Margin;
+                    var margin = mChildren[i].Margin;
 
-                    child.SetBounds(
+                    mChildren[i].SetBounds(
                         bounds.X + margin.Left, bounds.Y + margin.Top, bounds.Width - margin.Left - margin.Right,
-                        child.Height
+                        mChildren[i].Height
                     );
 
-                    var height = margin.Top + margin.Bottom + child.Height;
+                    var height = margin.Top + margin.Bottom + mChildren[i].Height;
                     bounds.Y += height;
                     bounds.Height -= height;
                 }
 
-                if (0 != (dock & Pos.Left))
+                if (dock.HasFlag(Pos.Left))
                 {
-                    var margin = child.Margin;
+                    var margin = mChildren[i].Margin;
 
-                    child.SetBounds(
-                        bounds.X + margin.Left, bounds.Y + margin.Top, child.Width,
+                    mChildren[i].SetBounds(
+                        bounds.X + margin.Left, bounds.Y + margin.Top, mChildren[i].Width,
                         bounds.Height - margin.Top - margin.Bottom
                     );
 
-                    var width = margin.Left + margin.Right + child.Width;
+                    var width = margin.Left + margin.Right + mChildren[i].Width;
                     bounds.X += width;
                     bounds.Width -= width;
                 }
 
-                if (0 != (dock & Pos.Right))
+                if (dock.HasFlag(Pos.Right))
                 {
                     // TODO: THIS MARGIN CODE MIGHT NOT BE FULLY FUNCTIONAL
-                    var margin = child.Margin;
+                    var margin = mChildren[i].Margin;
 
-                    child.SetBounds(
-                        bounds.X + bounds.Width - child.Width - margin.Right, bounds.Y + margin.Top, child.Width,
+                    mChildren[i].SetBounds(
+                        bounds.X + bounds.Width - mChildren[i].Width - margin.Right, bounds.Y + margin.Top, mChildren[i].Width,
                         bounds.Height - margin.Top - margin.Bottom
                     );
 
-                    var width = margin.Left + margin.Right + child.Width;
+                    var width = margin.Left + margin.Right + mChildren[i].Width;
                     bounds.Width -= width;
                 }
 
-                if (0 != (dock & Pos.Bottom))
+                if (dock.HasFlag(Pos.Bottom))
                 {
                     // TODO: THIS MARGIN CODE MIGHT NOT BE FULLY FUNCTIONAL
-                    var margin = child.Margin;
+                    var margin = mChildren[i].Margin;
 
-                    child.SetBounds(
-                        bounds.X + margin.Left, bounds.Y + bounds.Height - child.Height - margin.Bottom,
-                        bounds.Width - margin.Left - margin.Right, child.Height
+                    mChildren[i].SetBounds(
+                        bounds.X + margin.Left, bounds.Y + bounds.Height - mChildren[i].Height - margin.Bottom,
+                        bounds.Width - margin.Left - margin.Right, mChildren[i].Height
                     );
 
-                    bounds.Height -= child.Height + margin.Bottom + margin.Top;
+                    bounds.Height -= mChildren[i].Height + margin.Bottom + margin.Top;
                 }
 
-                child.RecurseLayout(skin);
+                mChildren[i].RecurseLayout(skin);
             }
 
             mInnerBounds = bounds;
@@ -2389,23 +2523,23 @@ namespace Intersect.Client.Framework.Gwen.Control
             //
             // Fill uses the left over space, so do that now.
             //
-            foreach (var child in mChildren)
+            for (int i = 0; i < mChildren.Count; i++)
             {
-                var dock = child.Dock;
+                var dock = mChildren[i].Dock;
 
-                if (0 == (dock & Pos.Fill))
+                if (!dock.HasFlag(Pos.Fill))
                 {
                     continue;
                 }
 
-                var margin = child.Margin;
+                var margin = mChildren[i].Margin;
 
-                child.SetBounds(
+                mChildren[i].SetBounds(
                     bounds.X + margin.Left, bounds.Y + margin.Top, bounds.Width - margin.Left - margin.Right,
                     bounds.Height - margin.Top - margin.Bottom
                 );
 
-                child.RecurseLayout(skin);
+                mChildren[i].RecurseLayout(skin);
             }
 
             PostLayout(skin);
@@ -2631,15 +2765,15 @@ namespace Intersect.Client.Framework.Gwen.Control
         {
             var size = Point.Empty;
 
-            foreach (var child in mChildren)
+            for (int i = 0; i < mChildren.Count; i++)
             {
-                if (child.IsHidden)
+                if (mChildren[i].IsHidden)
                 {
                     continue;
                 }
 
-                size.X = Math.Max(size.X, child.Right);
-                size.Y = Math.Max(size.Y, child.Bottom);
+                size.X = Math.Max(size.X, mChildren[i].Right);
+                size.Y = Math.Max(size.Y, mChildren[i].Bottom);
             }
 
             return size;
@@ -2737,46 +2871,57 @@ namespace Intersect.Client.Framework.Gwen.Control
                     handled = OnKeyTab(down);
 
                     break;
+
                 case Key.Space:
                     handled = OnKeySpace(down);
 
                     break;
+
                 case Key.Home:
                     handled = OnKeyHome(down);
 
                     break;
+
                 case Key.End:
                     handled = OnKeyEnd(down);
 
                     break;
+
                 case Key.Return:
                     handled = OnKeyReturn(down);
 
                     break;
+
                 case Key.Backspace:
                     handled = OnKeyBackspace(down);
 
                     break;
+
                 case Key.Delete:
                     handled = OnKeyDelete(down);
 
                     break;
+
                 case Key.Right:
                     handled = OnKeyRight(down);
 
                     break;
+
                 case Key.Left:
                     handled = OnKeyLeft(down);
 
                     break;
+
                 case Key.Up:
                     handled = OnKeyUp(down);
 
                     break;
+
                 case Key.Down:
                     handled = OnKeyDown(down);
 
                     break;
+
                 case Key.Escape:
                     handled = OnKeyEscape(down);
 
@@ -3111,6 +3256,55 @@ namespace Intersect.Client.Framework.Gwen.Control
             }
         }
 
+        protected bool SetIfChanged<T>(ref T field, T value)
+        {
+            if (EqualityComparer<T>.Default.Equals(field, value))
+            {
+                return false;
+            }
+
+            field = value;
+            return true;
+        }
+
+        protected bool SetIfChanged<T>(ref T field, T value, out T oldValue)
+        {
+            oldValue = field;
+            return SetIfChanged(ref field, value);
+        }
+
+        protected bool SetAndDoIfChanged<T>(ref T field, T value, Action action)
+        {
+            if (default == action)
+            {
+                throw new ArgumentNullException(nameof(action));
+            }
+
+            if (SetIfChanged(ref field, value))
+            {
+                action();
+                return true;
+            }
+
+            return false;
+        }
+
+        protected bool SetAndDoIfChanged<T>(ref T field, T value, ValueChangedHandler<T> valueChangedHandle)
+        {
+            if (default == valueChangedHandle)
+            {
+                throw new ArgumentNullException(nameof(valueChangedHandle));
+            }
+
+            if (SetIfChanged(ref field, value, out var oldValue))
+            {
+                valueChangedHandle(oldValue, field);
+                return true;
+            }
+
+            return false;
+        }
     }
 
+    public delegate void ValueChangedHandler<T>(T oldValue, T newValue);
 }

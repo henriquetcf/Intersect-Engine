@@ -2,13 +2,14 @@
 
 using Intersect.Client.Core;
 using Intersect.Client.Framework.File_Management;
+using Intersect.Client.Framework.Graphics;
 using Intersect.Client.Framework.Gwen.Control;
 using Intersect.Client.Localization;
 
 namespace Intersect.Client.Interface.Game.Trades
 {
 
-    public class TradeSegment
+    public partial class TradeSegment
     {
 
         private static int sItemXPadding = 4;

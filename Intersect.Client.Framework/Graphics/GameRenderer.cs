@@ -4,12 +4,10 @@ using System.IO;
 
 using Intersect.Client.Framework.GenericClasses;
 
-using JetBrains.Annotations;
-
 namespace Intersect.Client.Framework.Graphics
 {
 
-    public abstract class GameRenderer
+    public abstract partial class GameRenderer : IGameRenderer
     {
 
         public GameRenderer()
@@ -17,8 +15,15 @@ namespace Intersect.Client.Framework.Graphics
             ScreenshotRequests = new List<Stream>();
         }
 
-        [NotNull]
         public List<Stream> ScreenshotRequests { get; }
+
+        public Resolution ActiveResolution => new Resolution(PreferredResolution, OverrideResolution);
+
+        public bool HasOverrideResolution => OverrideResolution != Resolution.Empty;
+
+        public Resolution OverrideResolution { get; set; }
+
+        public Resolution PreferredResolution { get; set; }
 
         public abstract void Init();
 
@@ -44,6 +49,12 @@ namespace Intersect.Client.Framework.Graphics
 
         public abstract void SetView(FloatRect view);
 
+        public FloatRect CurrentView
+        {
+            get { return GetView(); }
+            set { SetView(value); }
+        }
+
         public abstract FloatRect GetView();
 
         public abstract GameFont LoadFont(string filename);
@@ -67,11 +78,38 @@ namespace Intersect.Client.Framework.Graphics
             bool drawImmediate = false
         );
 
+        public int Fps => GetFps();
+
         public abstract int GetFps();
+
+        public int ScreenWidth => GetScreenWidth();
 
         public abstract int GetScreenWidth();
 
+        public int ScreenHeight => GetScreenHeight();
+
         public abstract int GetScreenHeight();
+
+        public string ResolutionAsString => GetResolutionString();
+
+         void IGameRenderer.DrawTexture(
+            GameTexture tex,
+            float sx,
+            float sy,
+            float sw,
+            float sh,
+            float tx,
+            float ty,
+            float tw,
+            float th,
+            Color renderColor,
+            GameRenderTexture renderTarget = null,
+            GameBlendModes blendMode = GameBlendModes.None,
+            GameShader shader = null,
+            float rotationDegrees = 0.0f
+        ) => DrawTexture(tex, sx, sy, sw, sh, tx, ty, tw, th, renderColor, renderTarget, blendMode, shader, rotationDegrees);
+
+        public GameRenderTexture CreateWhiteTexture() => GetWhiteTexture() as GameRenderTexture;
 
         public abstract string GetResolutionString();
 
@@ -80,6 +118,11 @@ namespace Intersect.Client.Framework.Graphics
         public abstract GameRenderTexture CreateRenderTexture(int width, int height);
 
         public abstract GameTexture LoadTexture(string filename, string realFilename);
+
+        public abstract GameTexture LoadTexture(
+            string assetName,
+            Func<Stream> createStream
+        );
 
         public abstract GameTexture GetWhiteTexture();
 
@@ -117,6 +160,7 @@ namespace Intersect.Client.Framework.Graphics
 
         public abstract void Close();
 
+        public List<string> ValidVideoModes => GetValidVideoModes();
         public abstract List<string> GetValidVideoModes();
 
         public abstract GameShader LoadShader(string shaderName);

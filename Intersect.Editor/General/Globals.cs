@@ -13,7 +13,7 @@ using Intersect.GameObjects;
 namespace Intersect.Editor.General
 {
 
-    public static class Globals
+    public static partial class Globals
     {
 
         public static int AutotileFrame = 0;
@@ -46,14 +46,14 @@ namespace Intersect.Editor.General
 
         public static int CurrentEditor = -1;
 
-        public static int CurrentLayer = 0;
+        public static string CurrentLayer = string.Empty;
 
         //Editor Variables
         public static MapInstance CurrentMap = null;
 
         public static TilesetBase CurrentTileset = null;
 
-        public static int CurrentTool = (int) EditingTool.Pen;
+        public static int CurrentTool = (int) EditingTool.Brush;
 
         public static int CurSelH;
 
@@ -134,7 +134,7 @@ namespace Intersect.Editor.General
         //Game Object Editors
         public static FrmResource ResourceEditor;
 
-        public static int SavedTool = (int) EditingTool.Pen;
+        public static int SavedTool = (int) EditingTool.Brush;
 
         public static bool SavingOnClose;
 
@@ -142,8 +142,6 @@ namespace Intersect.Editor.General
 
         //Selection Moving Copying and Pasting
         public static int SelectionType = (int) SelectionTypes.AllLayers;
-
-        public static Core.Sys System = new Core.Sys();
 
         public static int TileDragX = 0;
 

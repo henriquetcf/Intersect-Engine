@@ -6,7 +6,7 @@ using System.Text;
 namespace Intersect.Memory
 {
 
-    public class StreamWrapper : Stream, IBuffer
+    public partial class StreamWrapper : Stream, IBuffer
     {
 
         public StreamWrapper(Stream stream)
@@ -706,7 +706,7 @@ namespace Intersect.Memory
 
         public void Write(byte[] value, long offset, long count)
         {
-            Stream?.Write(value ?? new byte[0], (int) offset, (int) count);
+            Stream?.Write(value ?? Array.Empty<byte>(), (int) offset, (int) count);
         }
 
         public void Write(char value)

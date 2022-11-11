@@ -1,10 +1,13 @@
-﻿using System;
+using System;
 
 using Intersect.Admin.Actions;
 using Intersect.Client.Core.Controls;
 using Intersect.Client.Framework.GenericClasses;
+using Intersect.Client.Framework.Graphics;
 using Intersect.Client.Framework.Input;
 using Intersect.Client.General;
+using Intersect.Client.Interface;
+using Intersect.Client.Interface.Game;
 using Intersect.Client.Maps;
 using Intersect.Client.Networking;
 using Intersect.Logging;
@@ -13,10 +16,10 @@ using Intersect.Utilities;
 namespace Intersect.Client.Core
 {
 
-    public static class Input
+    public static partial class Input
     {
 
-        public delegate void HandleKeyEvent(Keys key);
+        public delegate void HandleKeyEvent(Keys modifier, Keys key);
 
         public static HandleKeyEvent KeyDown;
 
@@ -26,7 +29,7 @@ namespace Intersect.Client.Core
 
         public static HandleKeyEvent MouseUp;
 
-        public static void OnKeyPressed(Keys key)
+        public static void OnKeyPressed(Keys modifier, Keys key)
         {
             if (key == Keys.None)
             {
@@ -34,8 +37,9 @@ namespace Intersect.Client.Core
             }
 
             var consumeKey = false;
+            bool canFocusChat = true;
 
-            KeyDown?.Invoke(key);
+            KeyDown?.Invoke(modifier, key);
             switch (key)
             {
                 case Keys.Escape:
@@ -48,16 +52,66 @@ namespace Intersect.Client.Core
                     Globals.GameState = GameStates.Menu;
 
                     return;
+
+                case Keys.Enter:
+
+                    for (int i = Interface.Interface.InputBlockingElements.Count - 1; i >= 0; i--)
+                    {
+                        try
+                        {
+                            var iBox = (InputBox)Interface.Interface.InputBlockingElements[i];
+                            if (iBox != null && !iBox.IsHidden)
+                            {
+                                iBox.okayBtn_Clicked(null, null);
+                                canFocusChat = false;
+
+                                break;
+                            }
+                        }
+                        catch { }
+
+                        try
+                        {
+                            var eventWindow = (EventWindow)Interface.Interface.InputBlockingElements[i];
+                            if (eventWindow != null && !eventWindow.IsHidden && Globals.EventDialogs.Count > 0)
+                            {
+                                eventWindow.EventResponse1_Clicked(null, null);
+                                canFocusChat = false;
+
+                                break;
+                            }
+                        }
+                        catch { }
+                    }
+
+                    break;
             }
 
-            if (Controls.Controls.ControlHasKey(Control.OpenMenu, key))
+            if (Controls.Controls.ControlHasKey(Control.OpenMenu, modifier, key))
             {
                 if (Globals.GameState != GameStates.InGame)
                 {
                     return;
                 }
 
-                Interface.Interface.GameUi?.EscapeMenu?.ToggleHidden();
+                // First try and unfocus chat then close all UI elements, then untarget our target.. and THEN open the escape menu.
+                // Most games do this, why not this?
+                if (Interface.Interface.GameUi != null && Interface.Interface.GameUi.ChatFocussed)
+                {
+                    Interface.Interface.GameUi.UnfocusChat = true;
+                }
+                else if (Interface.Interface.GameUi != null && Interface.Interface.GameUi.CloseAllWindows())
+                {
+                    // We've closed our windows, don't do anything else. :)
+                }
+                else if (Globals.Me != null && Globals.Me.TargetIndex != Guid.Empty)
+                {
+                    Globals.Me.ClearTarget();
+                }
+                else
+                {
+                    Interface.Interface.GameUi?.EscapeMenu?.ToggleHidden();
+                }
             }
 
             if (Interface.Interface.HasInputFocus())
@@ -65,11 +119,16 @@ namespace Intersect.Client.Core
                 return;
             }
 
-            Controls.Controls.GetControlsFor(key)
+            Controls.Controls.GetControlsFor(modifier, key)
                 ?.ForEach(
                     control =>
                     {
                         if (consumeKey)
+                        {
+                            return;
+                        }
+
+                        if (IsModifier(key))
                         {
                             return;
                         }
@@ -87,6 +146,10 @@ namespace Intersect.Client.Core
                                     Interface.Interface.HideUi = !Interface.Interface.HideUi;
                                 }
 
+                                break;
+
+                            case Control.OpenDebugger:
+                                MutableInterface.ToggleDebug();
                                 break;
                         }
 
@@ -127,13 +190,16 @@ namespace Intersect.Client.Core
                                         break;
 
                                     case Control.PickUp:
-                                        Globals.Me?.TryPickupItem();
+                                        Globals.Me?.TryPickupItem(Globals.Me.MapInstance.Id, Globals.Me.Y * Options.MapWidth + Globals.Me.X);
 
                                         break;
 
                                     case Control.Enter:
-                                        Interface.Interface.GameUi.FocusChat = true;
-                                        consumeKey = true;
+                                        if (canFocusChat)
+                                        {
+                                            Interface.Interface.GameUi.FocusChat = true;
+                                            consumeKey = true;
+                                        }
 
                                         return;
 
@@ -147,20 +213,6 @@ namespace Intersect.Client.Core
                                     case Control.Hotkey8:
                                     case Control.Hotkey9:
                                     case Control.Hotkey0:
-                                        var index = control - Control.Hotkey1;
-                                        if (0 <= index && index < Interface.Interface.GameUi?.Hotbar?.Items?.Count)
-                                        {
-                                            Interface.Interface.GameUi?.Hotbar?.Items?[index]?.Activate();
-                                        }
-                                        else
-                                        {
-                                            Log.Warn(
-                                                Interface.Interface.GameUi?.Hotbar?.Items == null
-                                                    ? $"Tried to press Hotkey{(index + 1) % 10} but the hotbar items are null."
-                                                    : $"Tried to press Hotkey{(index + 1) % 10} which was out of bounds ({control})."
-                                            );
-                                        }
-
                                         break;
 
                                     case Control.OpenInventory:
@@ -194,17 +246,17 @@ namespace Intersect.Client.Core
                                         break;
 
                                     case Control.OpenSettings:
-                                        Interface.Interface.GameUi?.EscapeMenu?.OpenSettings();
-
-                                        break;
-
-                                    case Control.OpenDebugger:
-                                        Interface.Interface.GameUi?.ShowHideDebug();
+                                        Interface.Interface.GameUi?.EscapeMenu?.OpenSettingsWindow();
 
                                         break;
 
                                     case Control.OpenAdminPanel:
                                         PacketSender.SendOpenAdminWindow();
+
+                                        break;
+
+                                    case Control.OpenGuild:
+                                        Interface.Interface.GameUi?.GameMenu.ToggleGuildWindow();
 
                                         break;
                                 }
@@ -226,9 +278,9 @@ namespace Intersect.Client.Core
                 );
         }
 
-        public static void OnKeyReleased(Keys key)
+        public static void OnKeyReleased(Keys modifier, Keys key)
         {
-            KeyUp?.Invoke(key);
+            KeyUp?.Invoke(modifier, key);
             if (Interface.Interface.HasInputFocus())
             {
                 return;
@@ -238,35 +290,30 @@ namespace Intersect.Client.Core
             {
                 return;
             }
-
-            if (Controls.Controls.ControlHasKey(Control.Block, key))
-            {
-                Globals.Me.StopBlocking();
-            }
         }
 
-        public static void OnMouseDown(GameInput.MouseButtons btn)
+        public static void OnMouseDown(Keys modifier, MouseButtons btn)
         {
             var key = Keys.None;
             switch (btn)
             {
-                case GameInput.MouseButtons.Left:
+                case MouseButtons.Left:
                     key = Keys.LButton;
 
                     break;
 
-                case GameInput.MouseButtons.Right:
+                case MouseButtons.Right:
                     key = Keys.RButton;
 
                     break;
 
-                case GameInput.MouseButtons.Middle:
+                case MouseButtons.Middle:
                     key = Keys.MButton;
 
                     break;
             }
 
-            MouseDown?.Invoke(key);
+            MouseDown?.Invoke(modifier, key);
             if (Interface.Interface.HasInputFocus())
             {
                 return;
@@ -292,9 +339,9 @@ namespace Intersect.Client.Core
                 return;
             }
 
-            if (Controls.Controls.ControlHasKey(Control.PickUp, key))
+            if (Controls.Controls.ControlHasKey(Control.PickUp, modifier, key))
             {
-                if (Globals.Me.TryPickupItem())
+                if (Globals.Me.TryPickupItem(Globals.Me.MapInstance.Id, Globals.Me.Y * Options.MapWidth + Globals.Me.X, Guid.Empty, true))
                 {
                     return;
                 }
@@ -305,7 +352,7 @@ namespace Intersect.Client.Core
                 }
             }
 
-            if (Controls.Controls.ControlHasKey(Control.Block, key))
+            if (Controls.Controls.ControlHasKey(Control.Block, modifier, key))
             {
                 if (Globals.Me.TryBlock())
                 {
@@ -315,27 +362,27 @@ namespace Intersect.Client.Core
 
             if (key != Keys.None)
             {
-                OnKeyPressed(key);
+                OnKeyPressed(modifier, key);
             }
         }
 
-        public static void OnMouseUp(GameInput.MouseButtons btn)
+        public static void OnMouseUp(Keys modifier, MouseButtons btn)
         {
             var key = Keys.LButton;
             switch (btn)
             {
-                case GameInput.MouseButtons.Right:
+                case MouseButtons.Right:
                     key = Keys.RButton;
 
                     break;
 
-                case GameInput.MouseButtons.Middle:
+                case MouseButtons.Middle:
                     key = Keys.MButton;
 
                     break;
             }
 
-            MouseUp?.Invoke(key);
+            MouseUp?.Invoke(modifier, key);
             if (Interface.Interface.HasInputFocus())
             {
                 return;
@@ -346,12 +393,7 @@ namespace Intersect.Client.Core
                 return;
             }
 
-            if (Controls.Controls.ControlHasKey(Control.Block, key))
-            {
-                Globals.Me.StopBlocking();
-            }
-
-            if (btn != GameInput.MouseButtons.Right)
+            if (btn != MouseButtons.Right)
             {
                 return;
             }
@@ -385,7 +427,7 @@ namespace Intersect.Client.Core
                 y /= Options.TileHeight;
                 var mapNum = map.Id;
 
-                if (Globals.Me.GetRealLocation(ref x, ref y, ref mapNum))
+                if (Globals.Me.TryGetRealLocation(ref x, ref y, ref mapNum))
                 {
                     PacketSender.SendAdminAction(new WarpToLocationAction(map.Id, (byte) x, (byte) y));
                 }
@@ -394,6 +436,25 @@ namespace Intersect.Client.Core
             }
         }
 
+        public static bool IsModifier(Keys key)
+        {
+            switch (key)
+            {
+                case Keys.Control:
+                case Keys.ControlKey:
+                case Keys.LControlKey:
+                case Keys.RControlKey:
+                case Keys.LShiftKey:
+                case Keys.RShiftKey:
+                case Keys.Shift:
+                case Keys.ShiftKey:
+                case Keys.Alt:
+                    return true;
+
+                default:
+                    return false;
+            }
+        }
     }
 
 }

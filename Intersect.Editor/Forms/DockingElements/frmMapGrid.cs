@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Windows.Forms;
 
 using Intersect.Editor.Core;
@@ -36,6 +36,8 @@ namespace Intersect.Editor.Forms.DockingElements
         public FrmMapGrid()
         {
             InitializeComponent();
+            Icon = System.Drawing.Icon.ExtractAssociatedIcon(System.Reflection.Assembly.GetExecutingAssembly().Location);
+
             pnlMapGrid.MouseWheel += PnlMapGrid_MouseWheel;
         }
 
@@ -45,7 +47,7 @@ namespace Intersect.Editor.Forms.DockingElements
             if (Globals.MapGrid == null)
             {
                 Globals.MapGrid = new MapGrid(
-                    linkMapToolStripMenuItem, unlinkMapToolStripMenuItem, recacheMapToolStripMenuItem, contextMenuStrip
+                    linkMapToolStripMenuItem, unlinkMapToolStripMenuItem, recacheMapToolStripMenuItem, contextMenuStrip, Icon
                 );
             }
 

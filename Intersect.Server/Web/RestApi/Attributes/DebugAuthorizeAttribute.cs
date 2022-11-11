@@ -6,13 +6,11 @@ using System.Threading.Tasks;
 using System.Web.Http;
 using System.Web.Http.Controllers;
 
-using JetBrains.Annotations;
-
 namespace Intersect.Server.Web.RestApi.Attributes
 {
 
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, Inherited = false)]
-    internal class DebugAuthorizeAttribute : AuthorizeAttribute
+    internal partial class DebugAuthorizeAttribute : AuthorizeAttribute
     {
 
         protected override bool IsAuthorized(HttpActionContext actionContext)
@@ -34,7 +32,7 @@ namespace Intersect.Server.Web.RestApi.Attributes
             return base.OnAuthorizationAsync(actionContext, cancellationToken);
         }
 
-        protected override void HandleUnauthorizedRequest([NotNull] HttpActionContext actionContext)
+        protected override void HandleUnauthorizedRequest(HttpActionContext actionContext)
         {
             actionContext.Response = new HttpResponseMessage(HttpStatusCode.NotFound);
         }

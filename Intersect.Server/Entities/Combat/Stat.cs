@@ -1,4 +1,5 @@
-﻿using System.Collections.Concurrent;
+﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -9,10 +10,12 @@ using Intersect.Server.General;
 namespace Intersect.Server.Entities.Combat
 {
 
-    public class Stat
+    public partial class Stat
     {
 
         private ConcurrentDictionary<SpellBase, Buff> mBuff = new ConcurrentDictionary<SpellBase, Buff>();
+
+        private Buff[] mCachedBuffs = new Buff[0];
 
         private bool mChanged;
 
@@ -34,37 +37,53 @@ namespace Intersect.Server.Entities.Combat
 
         public int Value()
         {
-            var s = BaseStat;
+            // Get our base flat and percentage stats to calculate with.
+            var flatStats = BaseStat + mOwner.StatPointAllocations[(int)mStatType];
+            var percentageStats = 0;
 
-            s += mOwner.StatPointAllocations[(int) mStatType];
-            s += mOwner.GetStatBuffs(mStatType);
-
-            //Add buffs
-            var buffs = mBuff.Values.ToArray();
-            foreach (var buff in buffs)
+            // Add item buffs
+            if (mOwner is Player player)
             {
-                s += buff.BuffType;
+                var statBuffs = player.GetItemStatBuffs(mStatType);
+                flatStats += statBuffs.Item1;
+                percentageStats += statBuffs.Item2;
             }
 
-            if (s <= 0)
+            //Add spell buffs
+            foreach (var buff in mCachedBuffs)
             {
-                s = 1; //No 0 or negative stats, will give errors elsewhere in the code (especially divide by 0 errors).
+                flatStats += buff.FlatStatcount;
+                percentageStats += buff.PercentageStatcount;
             }
 
-            return s;
+            // Calculate our final stat
+            var finalStat = (int)Math.Ceiling(flatStats + (flatStats * (percentageStats / 100f)));
+            if (finalStat <= 0)
+            {
+                finalStat = 1; //No 0 or negative stats, will give errors elsewhere in the code (especially divide by 0 errors).
+            }
+
+            return finalStat;
         }
 
-        public bool Update()
+        public bool Update(long time)
         {
+            var origVal = Value();
             var changed = false;
             foreach (var buff in mBuff)
             {
-                if (buff.Value.Duration <= Globals.Timing.Milliseconds)
+                if (buff.Value.ExpireTime <= time)
                 {
                     changed |= mBuff.TryRemove(buff.Key, out Buff result);
                 }
             }
 
+            if (changed)
+            {
+                mCachedBuffs = mBuff.Values.ToArray();
+            }
+
+            changed |= Value() != origVal;
             changed |= mChanged;
             mChanged = false;
 
@@ -73,13 +92,16 @@ namespace Intersect.Server.Entities.Combat
 
         public void AddBuff(Buff buff)
         {
+            var origVal = Value();
             mBuff.AddOrUpdate(buff.Spell, buff, (key, val) => buff);
-            mChanged = true;
+            mCachedBuffs = mBuff.Values.ToArray();
+            mChanged = Value() != origVal;
         }
 
         public void Reset()
         {
             mBuff.Clear();
+            mCachedBuffs = mBuff.Values.ToArray();
         }
 
     }

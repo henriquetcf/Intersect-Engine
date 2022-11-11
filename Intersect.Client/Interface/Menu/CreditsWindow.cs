@@ -1,7 +1,7 @@
-﻿using System.IO;
-
+using System.IO;
 using Intersect.Client.Core;
 using Intersect.Client.Framework.File_Management;
+using Intersect.Client.Framework.Graphics;
 using Intersect.Client.Framework.Gwen.Control;
 using Intersect.Client.Framework.Gwen.Control.EventArguments;
 using Intersect.Client.Localization;
@@ -11,7 +11,7 @@ using Newtonsoft.Json;
 namespace Intersect.Client.Interface.Menu
 {
 
-    public class CreditsWindow
+    public partial class CreditsWindow
     {
 
         private Button mBackBtn;

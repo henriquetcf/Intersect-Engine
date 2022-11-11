@@ -1,8 +1,14 @@
-﻿namespace Intersect.Network.Packets.Client
-{
+﻿using MessagePack;
 
-    public class OfferTradeItemPacket : SlotQuantityPacket
+namespace Intersect.Network.Packets.Client
+{
+    [MessagePackObject]
+    public partial class OfferTradeItemPacket : SlotQuantityPacket
     {
+        //Parameterless Constructor for MessagePack
+        public OfferTradeItemPacket() : base(0, 0)
+        {
+        }
 
         public OfferTradeItemPacket(int slot, int quantity) : base(slot, quantity)
         {

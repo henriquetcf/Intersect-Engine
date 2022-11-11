@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 
 using Intersect.Client.Framework.File_Management;
 using Intersect.Client.Framework.Graphics;
@@ -10,7 +11,7 @@ using Microsoft.Xna.Framework.Graphics;
 namespace Intersect.Client.MonoGame.Graphics
 {
 
-    public class MonoFont : GameFont
+    public partial class MonoFont : GameFont
     {
 
         private SpriteFont mFont;
@@ -21,8 +22,9 @@ namespace Intersect.Client.MonoGame.Graphics
         {
             try
             {
-                fileName = GameContentManager.RemoveExtension(fileName);
-                mFont = contentManager.Load<SpriteFont>(fileName);
+                var extensionlessFileName = GameContentManager.RemoveExtension(fileName);
+                var resolvedFileName = Path.Combine(Environment.CurrentDirectory, extensionlessFileName);
+                mFont = contentManager.Load<SpriteFont>(resolvedFileName);
             }
             catch (Exception ex)
             {

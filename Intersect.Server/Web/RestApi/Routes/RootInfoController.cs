@@ -3,13 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Web.Http;
 
-using JetBrains.Annotations;
-
 namespace Intersect.Server.Web.RestApi.Routes
 {
 
     [RoutePrefix("info")]
-    public class RootInfoController : ApiController
+    public partial class RootInfoController : ApiController
     {
 
         static RootInfoController()
@@ -24,7 +22,6 @@ namespace Intersect.Server.Web.RestApi.Routes
                 .ToArray();
         }
 
-        [NotNull]
         private static string[] DiscoveredVersions { get; }
 
         [Route]

@@ -1,32 +1,32 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography;
 
 using Intersect.Logging;
 using Intersect.Network.Events;
 using Intersect.Network.Lidgren;
-
-using JetBrains.Annotations;
+using Intersect.Plugins.Interfaces;
 
 using Lidgren.Network;
 
 namespace Intersect.Network
 {
 
-    public class ClientNetwork : AbstractNetwork, IClient
+    public partial class ClientNetwork : AbstractNetwork, IClient
     {
 
         private readonly LidgrenInterface mLidgrenInterface;
 
-        public ClientNetwork([NotNull] NetworkConfiguration configuration, RSAParameters rsaParameters) : base(
+        public ClientNetwork(IPacketHelper packetHelper, NetworkConfiguration configuration, RSAParameters rsaParameters) : base(
+            packetHelper,
             configuration
         )
         {
             Guid = Guid.Empty;
 
             IsConnected = false;
-            IsServerOnline = false;
 
             mLidgrenInterface = new LidgrenInterface(this, typeof(NetClient), rsaParameters);
             mLidgrenInterface.OnConnected += HandleInterfaceOnConnected;
@@ -44,9 +44,11 @@ namespace Intersect.Network
 
         public HandleConnectionEvent OnDisconnected { get; set; }
 
+        public IConnection Connection => Connections.FirstOrDefault();
+
         public bool IsConnected { get; private set; }
 
-        public bool IsServerOnline { get; }
+        public bool IsServerOnline => IsConnected;
 
         public int Ping
         {
@@ -81,41 +83,41 @@ namespace Intersect.Network
             return true;
         }
 
-        public override bool Send(IPacket packet)
+        public override bool Send(IPacket packet, TransmissionMode mode = TransmissionMode.All)
         {
-            return mLidgrenInterface?.SendPacket(packet) ?? false;
+            return mLidgrenInterface?.SendPacket(packet, (IConnection)null, mode) ?? false;
         }
 
-        public override bool Send(IConnection connection, IPacket packet)
+        public override bool Send(IConnection connection, IPacket packet, TransmissionMode mode = TransmissionMode.All)
         {
-            return Send(packet);
+            return Send(packet, mode);
         }
 
-        public override bool Send(ICollection<IConnection> connections, IPacket packet)
+        public override bool Send(ICollection<IConnection> connections, IPacket packet, TransmissionMode mode = TransmissionMode.All)
         {
-            return Send(packet);
+            return Send(packet, mode);
         }
 
-        protected virtual void HandleInterfaceOnConnected([NotNull] INetworkLayerInterface sender, [NotNull] ConnectionEventArgs connectionEventArgs)
+        protected virtual void HandleInterfaceOnConnected(INetworkLayerInterface sender, ConnectionEventArgs connectionEventArgs)
         {
             Log.Info($"Connected [{connectionEventArgs.Connection?.Guid}].");
             IsConnected = true;
             OnConnected?.Invoke(sender, connectionEventArgs);
         }
 
-        protected virtual void HandleInterfaceOnConnectonApproved([NotNull] INetworkLayerInterface sender, [NotNull] ConnectionEventArgs connectionEventArgs)
+        protected virtual void HandleInterfaceOnConnectonApproved(INetworkLayerInterface sender, ConnectionEventArgs connectionEventArgs)
         {
             Log.Info($"Connection approved [{connectionEventArgs.Connection?.Guid}].");
             OnConnectionApproved?.Invoke(sender, connectionEventArgs);
         }
 
-        protected virtual void HandleInterfaceOnConnectonDenied([NotNull] INetworkLayerInterface sender, [NotNull] ConnectionEventArgs connectionEventArgs)
+        protected virtual void HandleInterfaceOnConnectonDenied(INetworkLayerInterface sender, ConnectionEventArgs connectionEventArgs)
         {
             Log.Info($"Connection denied [{connectionEventArgs.Connection?.Guid}].");
             OnConnectionDenied?.Invoke(sender, connectionEventArgs);
         }
 
-        protected virtual void HandleInterfaceOnDisconnected([NotNull] INetworkLayerInterface sender, [NotNull] ConnectionEventArgs connectionEventArgs)
+        protected virtual void HandleInterfaceOnDisconnected(INetworkLayerInterface sender, ConnectionEventArgs connectionEventArgs)
         {
             Log.Info($"Disconnected [{connectionEventArgs.Connection?.Guid ?? Guid.Empty}].");
             IsConnected = false;
