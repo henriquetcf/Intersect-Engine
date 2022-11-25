@@ -2010,6 +2010,7 @@ namespace Intersect.Client.Localization
                 {2, @"Warp to Target"},
                 {3, @"Dash"},
                 {4, @"Special"},
+                {5, @"Passive"},
             };
 
             [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
@@ -2190,6 +2191,8 @@ namespace Intersect.Client.Localization
             public static LocalizedString HitRadius = @"Hit Radius:";
 
             public static LocalizedString addsymbol = @"+";
+
+            public static LocalizedString removesymbol = @"-";
 
             public static Dictionary<int, LocalizedString> effectlist = new Dictionary<int, LocalizedString>
             {

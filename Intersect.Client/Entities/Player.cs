@@ -1095,6 +1095,12 @@ namespace Intersect.Client.Entities
         //Hotbar Processing
         public void AddToHotbar(int hotbarSlot, sbyte itemType, int itemSlot)
         {
+
+            // Passive spells do not go to hotbar
+            var trySpell = itemSlot != -1 ? SpellBase.Get(Spells[itemSlot].Id) : null;
+            if (trySpell != null && trySpell.SpellType == SpellTypes.Passive)
+               return;
+
             Hotbar[hotbarSlot].ItemOrSpellId = Guid.Empty;
             Hotbar[hotbarSlot].PreferredStatBuffs = new int[(int)Stats.StatCount];
             if (itemType == 0)

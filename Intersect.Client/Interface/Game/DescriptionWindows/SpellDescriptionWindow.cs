@@ -49,11 +49,14 @@ namespace Intersect.Client.Interface.Game.DescriptionWindows
                 case SpellTypes.Dash:
                     SetupDashInfo();
                     break;
+                case SpellTypes.Passive:
+                    SetupPassiveInfo();
+                    break;
             }
 
             // Set up bind info, if applicable.
             SetupExtraInfo();
-            
+
 
             // Resize the container, correct the display and position our window.
             FinalizeWindow();
@@ -79,7 +82,7 @@ namespace Intersect.Client.Interface.Game.DescriptionWindows
             header.SetSubtitle(spellType, Color.White);
 
             // Set up the spelldescription based on what kind of spell it is.
-            if (mSpell.SpellType == (int)SpellTypes.CombatSpell)
+            if (mSpell.SpellType == (int)SpellTypes.CombatSpell || mSpell.SpellType == SpellTypes.Passive)
             {
                 if (mSpell.Combat.TargetType == SpellTargetTypes.Projectile)
                 {
@@ -99,12 +102,12 @@ namespace Intersect.Client.Interface.Game.DescriptionWindows
         {
             // Add a divider.
             AddDivider();
-            
+
             // Add a new row control to add our details into.
             var rows = AddRowContainer();
 
             // Friendly / Non Friendly for combat spells.
-            if (mSpell.SpellType == SpellTypes.CombatSpell || mSpell.SpellType == SpellTypes.WarpTo)
+            if (mSpell.SpellType == SpellTypes.CombatSpell || mSpell.SpellType == SpellTypes.WarpTo || mSpell.SpellType == SpellTypes.Passive)
             {
                 if (mSpell.Combat.Friendly)
                 {
@@ -117,12 +120,15 @@ namespace Intersect.Client.Interface.Game.DescriptionWindows
             }
 
             // Add cast time
-            var castTime = Strings.SpellDescription.Instant;
-            if (mSpell.CastDuration > 0)
+            if (mSpell.SpellType != SpellTypes.Passive)
             {
-                castTime = Strings.SpellDescription.Seconds.ToString(mSpell.CastDuration / 1000f);
+                var castTime = Strings.SpellDescription.Instant;
+                if (mSpell.CastDuration > 0)
+                {
+                    castTime = Strings.SpellDescription.Seconds.ToString(mSpell.CastDuration / 1000f);
+                }
+                rows.AddKeyValueRow(Strings.SpellDescription.CastTime, castTime);
             }
-            rows.AddKeyValueRow(Strings.SpellDescription.CastTime, castTime);
 
             // Add Vital Costs
             for (var i = 0; i < (int)Vitals.VitalCount; i++)
@@ -316,6 +322,121 @@ namespace Intersect.Client.Interface.Game.DescriptionWindows
             if (Options.Map.ZDimensionVisible && mSpell.Dash.IgnoreZDimensionAttributes)
             {
                 rows.AddKeyValueRow(Strings.SpellDescription.IgnoreZDimension, String.Empty);
+            }
+
+            // Resize and position the container.
+            rows.SizeToChildren(true, true);
+        }
+
+        protected void SetupPassiveInfo()
+        {
+            // Add a divider.
+            AddDivider();
+
+            // Add a row component.
+            var rows = AddRowContainer();
+
+            // Vital Damage, if 0 don't display!
+            // This bit is a bit iffy.. since in 
+            var isHeal = false;
+            var isDamage = false;
+            for (var i = 0; i < (int)Vitals.VitalCount; i++)
+            {
+                if (mSpell.Combat.VitalDiff[i] < 0)
+                {
+                    rows.AddKeyValueRow(Strings.SpellDescription.VitalRecovery[i], Math.Abs(mSpell.Combat.VitalDiff[i]).ToString());
+                    isHeal = true;
+                }
+                else if (mSpell.Combat.VitalDiff[i] > 0)
+                {
+                    rows.AddKeyValueRow(Strings.SpellDescription.VitalDamage[i], mSpell.Combat.VitalDiff[i].ToString());
+                    isDamage = true;
+                }
+            }
+
+            // Damage Type:
+            if (mSpell.Combat.TargetType != SpellTargetTypes.Self)
+            {
+                Strings.SpellDescription.DamageTypes.TryGetValue(mSpell.Combat.DamageType, out var damageType);
+                rows.AddKeyValueRow(Strings.SpellDescription.DamageType, damageType);
+            }
+
+            if (mSpell.Combat.Scaling > 0)
+            {
+                Strings.SpellDescription.Stats.TryGetValue(mSpell.Combat.ScalingStat, out var stat);
+                rows.AddKeyValueRow(Strings.SpellDescription.ScalingStat, stat);
+                rows.AddKeyValueRow(Strings.SpellDescription.ScalingPercentage, Strings.SpellDescription.Percentage.ToString(mSpell.Combat.Scaling));
+            }
+
+            // Crit Chance
+            if (mSpell.Combat.CritChance > 0)
+            {
+                rows.AddKeyValueRow(Strings.SpellDescription.CritChance, Strings.SpellDescription.Percentage.ToString(mSpell.Combat.CritChance));
+                rows.AddKeyValueRow(Strings.SpellDescription.CritMultiplier, Strings.SpellDescription.Multiplier.ToString(mSpell.Combat.CritMultiplier));
+            }
+
+            var showDuration = false;
+            // Handle Stat Buffs
+            var blankAdded = false;
+            for (var i = 0; i < (int)Stats.StatCount; i++)
+            {
+                Tuple<string, string> data = null;
+                if (mSpell.Combat.StatDiff[i] != 0 && mSpell.Combat.PercentageStatDiff[i] != 0)
+                {
+                    data = new Tuple<string, string>(Strings.SpellDescription.StatCounts[i], Strings.SpellDescription.RegularAndPercentage.ToString(mSpell.Combat.StatDiff[i], mSpell.Combat.PercentageStatDiff[i]));
+                }
+                else if (mSpell.Combat.StatDiff[i] != 0)
+                {
+                    data = new Tuple<string, string>(Strings.SpellDescription.StatCounts[i], mSpell.Combat.StatDiff[i].ToString());
+                }
+                else if (mSpell.Combat.PercentageStatDiff[i] != 0)
+                {
+                    data = new Tuple<string, string>(Strings.SpellDescription.StatCounts[i], Strings.ItemDescription.Percentage.ToString(mSpell.Combat.PercentageStatDiff[i]));
+                }
+
+                // Make sure we only add a blank row the first time we add a stat row.
+                if (data != null)
+                {
+                    if (!blankAdded)
+                    {
+                        rows.AddKeyValueRow(string.Empty, string.Empty);
+                        rows.AddKeyValueRow(Strings.SpellDescription.StatBuff, string.Empty);
+                        blankAdded = true;
+                    }
+
+                    rows.AddKeyValueRow(data.Item1, data.Item2);
+                    //showDuration = true;
+                }
+            }
+
+            // Handle HoT and DoT displays.
+            if (mSpell.Combat.HoTDoT)
+            {
+                showDuration = true;
+                rows.AddKeyValueRow(string.Empty, string.Empty);
+                if (isHeal)
+                {
+                    rows.AddKeyValueRow(Strings.SpellDescription.HoT, string.Empty);
+                }
+                else if (isDamage)
+                {
+                    rows.AddKeyValueRow(Strings.SpellDescription.DoT, string.Empty);
+                }
+                rows.AddKeyValueRow(Strings.SpellDescription.Tick, Strings.SpellDescription.Seconds.ToString(mSpell.Combat.HotDotInterval / 1000f));
+            }
+
+            // Handle effect display.
+            if (mSpell.Combat.Effect != StatusTypes.None)
+            {
+                showDuration = true;
+                rows.AddKeyValueRow(string.Empty, string.Empty);
+                rows.AddKeyValueRow(Strings.SpellDescription.Effect, Strings.SpellDescription.Effects[(int)mSpell.Combat.Effect]);
+            }
+
+            // Show Stat Buff / Effect / HoT / DoT duration.
+            if (showDuration)
+            {
+                rows.AddKeyValueRow(Strings.SpellDescription.Duration, Strings.SpellDescription.Seconds.ToString(mSpell.Combat.Duration / 1000f));
             }
 
             // Resize and position the container.

@@ -50,6 +50,8 @@ namespace Intersect.Client.Interface.Game.EntityPanel
 
         public ImagePanel EntityStatusPanel;
 
+        public ImagePanel EntityPassivePanel;
+
         public EntityTypes EntityType;
 
         public RichLabel EventDesc;
@@ -73,6 +75,8 @@ namespace Intersect.Client.Interface.Game.EntityPanel
         public Label HpTitle;
 
         private Dictionary<Guid, SpellStatus> mActiveStatuses = new Dictionary<Guid, SpellStatus>();
+
+        private Dictionary<Guid, SpellStatus> mActivePassives = new Dictionary<Guid, SpellStatus>();
 
         private string mCurrentSprite = "";
 
@@ -192,11 +196,13 @@ namespace Intersect.Client.Interface.Game.EntityPanel
             GuildLabel.IsHidden = true;
 
             EntityStatusPanel = new ImagePanel(EntityWindow, "StatusArea");
+            EntityPassivePanel = new ImagePanel(EntityWindow, "PassiveArea");
 
             SetEntity(myEntity);
 
             EntityWindow.LoadJsonUi(GameContentManager.UI.InGame, Graphics.Renderer.GetResolutionString());
 
+            UpdatePassiveStatus();
             UpdateSpellStatus();
 
             i = 0;
@@ -224,6 +230,7 @@ namespace Intersect.Client.Interface.Game.EntityPanel
             if (MyEntity != null)
             {
                 SetupEntityElements();
+                UpdatePassiveStatus();
                 UpdateSpellStatus();
                 if (EntityType == EntityTypes.Event)
                 {
@@ -241,6 +248,7 @@ namespace Intersect.Client.Interface.Game.EntityPanel
             if (MyEntity != null)
             {
                 SetupEntityElements();
+                UpdatePassiveStatus();
                 UpdateSpellStatus();
                 if (EntityType == EntityTypes.Event)
                 {
@@ -396,6 +404,7 @@ namespace Intersect.Client.Interface.Game.EntityPanel
             }
 
             UpdateSpellStatus();
+            UpdatePassiveStatus();
 
             //Time since this window was last updated (for bar animations)
             var elapsedTime = (Timing.Global.Milliseconds - mLastUpdateTime) / 1000.0f;
@@ -456,7 +465,84 @@ namespace Intersect.Client.Interface.Game.EntityPanel
                 itm.Value.Update();
             }
 
+            foreach (var itm in mActivePassives)
+            {
+                itm.Value.UpdatePassive();
+            }
+
             mLastUpdateTime = Timing.Global.Milliseconds;
+        }
+
+        public void UpdatePassiveStatus()
+        {
+            if (MyEntity == null)
+            {
+                return;
+            }
+
+            //Remove 'Dead' Statuses
+            var statuses = mActivePassives.Keys.ToArray();
+            foreach (var status in statuses)
+            {
+                if (!MyEntity.PassiveActive(status))
+                {
+                    var s = mActivePassives[status];
+                    s.Pnl.Texture = null;
+                    s.Container.Hide();
+                    s.Container.Texture = null;
+                    EntityStatusPanel.RemoveChild(s.Container, true);
+                    s.pnl_HoverLeave(null, null);
+                    mActivePassives.Remove(status);
+                }
+                else
+                {
+                    mActivePassives[status].UpdateStatus(MyEntity.GetPassive(status));
+                }
+            }
+
+            //Add all of the passive spell status effects
+            for (var i = 0; i < MyEntity.PassiveStatus.Count; i++)
+            {
+                var id = MyEntity.PassiveStatus[i].SpellId;
+                SpellStatus itm = null;
+                if (!mActivePassives.ContainsKey(id))
+                {
+                    itm = new SpellStatus(this, MyEntity.PassiveStatus[i]);
+                    if (PlayerBox)
+                    {
+                        itm.Container = new ImagePanel(EntityPassivePanel, "PlayerStatusIcon");
+                    }
+                    else
+                    {
+                        itm.Container = new ImagePanel(EntityPassivePanel, "TargetStatusIcon");
+                    }
+
+                    itm.Setup();
+
+                    itm.Container.LoadJsonUi(GameContentManager.UI.InGame, Graphics.Renderer.GetResolutionString());
+                    itm.Container.Name = "";
+                    mActivePassives.Add(id, itm);
+                }
+                else
+                {
+                    itm = mActivePassives[id];
+                }
+
+                var xPadding = itm.Container.Margin.Left + itm.Container.Margin.Right;
+                var yPadding = itm.Container.Margin.Top + itm.Container.Margin.Bottom;
+
+                itm.Container.SetPosition(
+                    i %
+                    (EntityPassivePanel.Width /
+                     Math.Max(1, EntityPassivePanel.Width / (itm.Container.Width + xPadding))) *
+                    (itm.Container.Width + xPadding) +
+                    xPadding,
+                    i /
+                    Math.Max(1, EntityPassivePanel.Width / (itm.Container.Width + xPadding)) *
+                    (itm.Container.Height + yPadding) +
+                    yPadding
+                );
+            }
         }
 
         public void UpdateSpellStatus()

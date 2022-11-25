@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 using Intersect.Client.Entities;
 using Intersect.Client.Framework.File_Management;
@@ -82,6 +82,51 @@ namespace Intersect.Client.Interface.Game.EntityPanel
             };
 
             return rect;
+        }
+
+        public void UpdatePassive()
+        {
+            if (mStatus != null)
+            {
+                var spell = SpellBase.Get(mStatus.SpellId);
+                if (spell != null && mStatus.TotalDuration >= 0)
+                {
+
+                    mDurationLabel.Text = "P";
+                    Container.Show();
+
+                    var spellTex = Globals.ContentManager.GetTexture(
+                            Framework.Content.TextureType.Spell, spell.Icon
+                        );
+
+                    if (spellTex != null)
+                    {
+                        Pnl.Texture = spellTex;
+                        Pnl.IsHidden = false;
+                    }
+                    else
+                    {
+                        if (Pnl.Texture != null)
+                        {
+                            Pnl.Texture = null;
+                        }
+                    }
+
+                    mTexLoaded = spell.Icon;
+                    mCurrentSpellId = mStatus.SpellId;
+
+                } else if (mStatus.TotalDuration <= -1)
+                {
+                    if (Pnl.Texture != null)
+                    {
+                        Pnl.Texture = null;
+                    }
+
+                    Container.Hide();
+                    mTexLoaded = "";
+                }
+            }
+            
         }
 
         public void UpdateStatus(Status status)

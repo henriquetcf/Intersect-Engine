@@ -260,8 +260,11 @@ namespace Intersect.Client.Entities
 
         //Status effects
         public List<IStatus> Status { get; private set; } = new List<IStatus>();
-
         IReadOnlyList<IStatus> IEntity.Status => Status;
+
+        //Passive status effects
+        public List<Status> PassiveStatus { get; private set; } = new List<Status>();
+        //IReadOnlyList<IStatus> IEntity.Status => PassiveStatus;
 
         public Pointf Origin => LatestMap == default ? Pointf.Empty : mOrigin;
 
@@ -410,6 +413,7 @@ namespace Intersect.Client.Entities
 
             //Update status effects
             Status.Clear();
+            PassiveStatus.Clear();
 
             if (packet.StatusEffects == null)
             {
@@ -420,10 +424,16 @@ namespace Intersect.Client.Entities
                 foreach (var status in packet.StatusEffects)
                 {
                     var instance = new Status(
-                        status.SpellId, status.Type, status.TransformSprite, status.TimeRemaining, status.TotalDuration
+                        status.SpellId, status.Type, status.TransformSprite, status.TimeRemaining, status.TotalDuration, status.IsPassive
                     );
-
-                    Status?.Add(instance);
+                    
+                    if (instance.IsPassive)
+                    {
+                        PassiveStatus?.Add(instance);
+                    } else
+                    {
+                        Status?.Add(instance);
+                    }
 
                     if (instance.Type == StatusTypes.Shield)
                     {
@@ -1627,6 +1637,34 @@ namespace Intersect.Client.Entities
             mChatBubbles.Add(new ChatBubble(this, text));
         }
 
+        //Passives
+        public bool PassiveActive(Guid guid)
+        {
+            foreach (var passive in PassiveStatus)
+            {
+                if (passive.SpellId == guid && passive.IsActive)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public Status GetPassive(Guid guid)
+        {
+            foreach (var passive in PassiveStatus)
+            {
+                if (passive.SpellId == guid && passive.IsActive)
+                {
+                    return passive;
+                }
+            }
+
+            return null;
+        }
+
+
         //Statuses
         public bool StatusActive(Guid guid)
         {
@@ -1658,6 +1696,7 @@ namespace Intersect.Client.Entities
         {
             //Sort Status effects by remaining time
             Status = Status.OrderByDescending(x => x.RemainingMs).ToList();
+            PassiveStatus = PassiveStatus.OrderBy(x => x.SpellId).ToList();
         }
 
         public void UpdateSpriteAnimation()

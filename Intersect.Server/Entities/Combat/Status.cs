@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -151,15 +151,31 @@ namespace Intersect.Server.Entities.Combat
             var finalDuration = duration - (duration * (tenacity / 100f));
             if (en.Statuses.ContainsKey(spell))
             {
-                en.Statuses[spell].StartTime = Timing.Global.Milliseconds;
-                en.Statuses[spell].Duration = Timing.Global.Milliseconds + (long) finalDuration;
-                en.Statuses[spell].StartTime = StartTime;
+                if (Spell.SpellType == SpellTypes.Passive)
+                {
+                    en.Statuses[spell].StartTime = duration;
+                    en.Statuses[spell].Duration = duration;
+                } else
+                {
+                    en.Statuses[spell].StartTime = Timing.Global.Milliseconds;
+                    en.Statuses[spell].Duration = Timing.Global.Milliseconds + (long)finalDuration;
+                    en.Statuses[spell].StartTime = StartTime;
+                }
+
                 en.CachedStatuses = en.Statuses.Values.ToArray();
             }
             else
-            { 
-                StartTime = Timing.Global.Milliseconds;
-                Duration = Timing.Global.Milliseconds + (long) finalDuration;
+            {
+                if (Spell.SpellType == SpellTypes.Passive)
+                {
+                    StartTime = duration;
+                    Duration = duration;
+                } else
+                {
+                    StartTime = Timing.Global.Milliseconds;
+                    Duration = Timing.Global.Milliseconds + (long)finalDuration;
+                }
+                
                 en.Statuses.TryAdd(Spell, this);
                 en.CachedStatuses = en.Statuses.Values.ToArray();
             }
@@ -207,7 +223,12 @@ namespace Intersect.Server.Entities.Combat
 
         public void TryRemoveStatus()
         {
-            if (Duration <= Timing.Global.Milliseconds) //Check the timer
+            if (Spell.SpellType != SpellTypes.Passive && Duration <= Timing.Global.Milliseconds) //Check the timer
+            {
+                RemoveStatus();
+            }
+
+            if (Spell.SpellType == SpellTypes.Passive && Duration <= -1)
             {
                 RemoveStatus();
             }

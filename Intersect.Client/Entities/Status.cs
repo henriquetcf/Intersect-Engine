@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Intersect.Client.Framework.Entities;
 using Intersect.Enums;
 using Intersect.Utilities;
@@ -23,7 +23,9 @@ namespace Intersect.Client.Entities
 
         public StatusTypes Type { get; set; }
 
-        public Status(Guid spellId, StatusTypes type, string data, long timeRemaining, long totalDuration)
+        public bool IsPassive = false;
+
+        public Status(Guid spellId, StatusTypes type, string data, long timeRemaining, long totalDuration, bool isPassive = false)
         {
             SpellId = spellId;
             Type = type;
@@ -31,11 +33,18 @@ namespace Intersect.Client.Entities
             TimeRemaining = timeRemaining;
             TotalDuration = totalDuration;
             TimeRecevied = Timing.Global.Milliseconds;
+            IsPassive = isPassive;
         }
 
-        public bool IsActive => RemainingMs > 0;
+
+        public bool IsActive => isPassive() ? TotalDuration >= 0 : RemainingMs > 0;
 
         public long RemainingMs => TimeRemaining - (Timing.Global.Milliseconds - TimeRecevied);
+
+        public bool isPassive()
+        {
+            return IsPassive;
+        }
 
     }
 

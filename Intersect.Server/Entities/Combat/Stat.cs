@@ -72,7 +72,16 @@ namespace Intersect.Server.Entities.Combat
             var changed = false;
             foreach (var buff in mBuff)
             {
-                if (buff.Value.ExpireTime <= time)
+                var spell = SpellBase.Get(buff.Key.Id);
+                if (spell.SpellType == SpellTypes.Passive)
+                {
+                    mOwner.Statuses.TryGetValue(spell, out Status status);
+                    if (status != null && status.Duration <= -1)
+                    {
+                        changed |= mBuff.TryRemove(buff.Key, out Buff result);
+                    }
+                }
+                else if (buff.Value.ExpireTime <= time)
                 {
                     changed |= mBuff.TryRemove(buff.Key, out Buff result);
                 }
