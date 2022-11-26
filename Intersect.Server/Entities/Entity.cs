@@ -2258,15 +2258,14 @@ namespace Intersect.Server.Entities
 
                             break;
                         case SpellTargetTypes.OnHit:
-                            if (spellBase.Combat.Effect == StatusTypes.OnHit)
-                            {
+                            if (spellBase.Combat.OnHitDuration > 0) {
                                 new Status(
                                     this, this, spellBase, StatusTypes.OnHit, spellBase.Combat.OnHitDuration,
                                     spellBase.Combat.TransformSprite
                                 );
 
                                 PacketSender.SendActionMsg(
-                                    this, Strings.Combat.status[(int) spellBase.Combat.Effect],
+                                    this, Strings.Combat.status[(int)StatusTypes.OnHit],
                                     CustomColors.Combat.Status
                                 );
                             }
